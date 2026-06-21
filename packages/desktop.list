@@ -40,7 +40,7 @@ lutris
 MangoHud
 gamemode
 gamescope
-protonup-qt
+# protonup-qt not in Void repos (install via flatpak instead)
 
 # Virtualization
 qemu

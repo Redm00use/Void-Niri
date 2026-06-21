@@ -54,7 +54,7 @@ noto-fonts-ttf
 noto-fonts-emoji
 font-awesome
 nerd-fonts
-nerd-fonts-jetbrains-mono
+# nerd-fonts-jetbrains-mono not in Void repos (included in nerd-fonts)
 
 # Power
 upower
