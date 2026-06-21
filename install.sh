@@ -318,6 +318,7 @@ partition_and_mount() {
 
     # Форматирование
     info "mkfs.fat $efi..."
+    info "sw=$sw root=$root hm=$hm"
     mkfs.fat -F32 "$efi"
     [ -n "$sw" ] && { mkswap "$sw"; swapon "$sw"; }
     [ -n "$hm" ] && { [ "$fs" = btrfs ] && mkfs.btrfs -f "$hm" || mkfs.ext4 -F "$hm"; }
