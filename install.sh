@@ -119,7 +119,7 @@ select_disk() {
 
     local candidates
     candidates=$(lsblk -d -n -e 7,11 -o NAME,TYPE,SIZE 2>/dev/null \
-        | awk '$2=="disk" {print $1}' | tr '\n' ' ')
+        | awk '$2=="disk" {print $1}' | tr '\n' ' ' | sed 's/ *$//')
 
     local count
     count=$(echo "$candidates" | wc -w)
@@ -180,7 +180,8 @@ partition_and_mount() {
     fi
 
     if [ ! -b "$disk" ]; then
-        error "Device $disk not available. Check: ls -la /dev/vd* /sys/block/"
+        error "Device $disk not available (len=${#disk}). Check: ls -la /dev/vd* /sys/block/"
+        printf 'disk=[%s]\n' "$disk" >&2
         ls -la /dev/vd* 2>/dev/null || true
         ls /sys/block/ 2>/dev/null || true
         exit 1
