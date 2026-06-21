@@ -189,17 +189,31 @@ partition_and_mount() {
 
     info "Разметка GPT на $disk..."
 
-    # Unmount any stale partitions from previous failed install attempts
-    local mnt
-    mnt=$(lsblk -n -o MOUNTPOINT "$disk"* 2>/dev/null | grep -v '^$' || true)
-    if [ -n "$mnt" ]; then
+    # Kill any stale devices from prior failed attempts
+    # Unmount any mounted partitions
+    local parts
+    parts=$(lsblk -n -l -o NAME,MOUNTPOINT 2>/dev/null | awk -v disk="$(basename "$disk")" '
+        $1 ~ "^"disk"[0-9]" && $2 != "" {print $2}' || true)
+    if [ -n "$parts" ]; then
         warn "Unmounting stale partitions..."
-        echo "$mnt" | while read -r mp; do umount "$mp" 2>/dev/null || true; done
+        echo "$parts" | while read -r mp; do umount "$mp" 2>/dev/null || true; done
     fi
-    swapoff "$disk"* 2>/dev/null || true
 
-    # Wipe existing signatures (from prior failed runs)
-    wipefs -a "$disk" 2>/dev/null || true
+    # Deactivate any swap on the disk
+    local disk_base
+    disk_base=$(basename "$disk")
+    for sw in /dev/${disk_base}*; do
+        [ -b "$sw" ] && swapoff "$sw" 2>/dev/null || true
+    done
+
+    # Wipe partition table and all signatures via dd
+    warn "Wiping partition table..."
+    dd if=/dev/zero of="$disk" bs=1M count=10 2>/dev/null || true
+    sync
+
+    # Force kernel to reread (now empty) partition table
+    blockdev --flushbufs "$disk" 2>/dev/null || true
+    partprobe "$disk" 2>/dev/null || udevadm settle 2>/dev/null || true
 
     parted -s "$disk" mklabel gpt
     parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
