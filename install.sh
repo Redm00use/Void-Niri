@@ -223,15 +223,15 @@ partition_and_mount() {
     # 6) Force kernel to reread empty table
     blockdev --rereadpt "$disk" 2>/dev/null || udevadm settle 2>/dev/null || true
 
-    # 7) Create fresh GPT (sgdisk -Z is more forceful than parted mklabel
-    #    at handling busy devices)
+    # 7) Destroy old partition table (sgdisk -Z is more forceful than parted)
     if command -v sgdisk &>/dev/null; then
         sgdisk -Z "$disk" 2>/dev/null || true
-    else
-        parted -s "$disk" mklabel gpt
+        blockdev --rereadpt "$disk" 2>/dev/null || true
     fi
     udevadm settle 2>/dev/null || true
 
+    # Always create a fresh GPT via parted so parted recognises the label
+    parted -s "$disk" mklabel gpt
     parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
     parted -s "$disk" set 1 esp on
 
