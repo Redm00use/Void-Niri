@@ -189,31 +189,37 @@ partition_and_mount() {
 
     info "Разметка GPT на $disk..."
 
-    # Kill any stale devices from prior failed attempts
-    # Unmount any mounted partitions
-    local parts
-    parts=$(lsblk -n -l -o NAME,MOUNTPOINT 2>/dev/null | awk -v disk="$(basename "$disk")" '
-        $1 ~ "^"disk"[0-9]" && $2 != "" {print $2}' || true)
-    if [ -n "$parts" ]; then
-        warn "Unmounting stale partitions..."
-        echo "$parts" | while read -r mp; do umount "$mp" 2>/dev/null || true; done
-    fi
-
-    # Deactivate any swap on the disk
     local disk_base
     disk_base=$(basename "$disk")
-    for sw in /dev/${disk_base}*; do
+
+    # Kill any stale devices from prior failed attempts
+    # 1) Unmount every mounted partition on this disk
+    for part in /dev/${disk_base}[0-9]*; do
+        [ -b "$part" ] || continue
+        local mp
+        mp=$(lsblk -n -o MOUNTPOINT "$part" 2>/dev/null || true)
+        [ -n "$mp" ] && { umount "$mp" 2>/dev/null || true; }
+    done
+
+    # 2) Deactivate any swap
+    for sw in /dev/${disk_base}[0-9]*; do
         [ -b "$sw" ] && swapoff "$sw" 2>/dev/null || true
     done
 
-    # Wipe partition table and all signatures via dd
+    # 3) Close any btrfs/mdadm/LUKS on this disk
+    btrfs device scan 2>/dev/null || true
+
+    # 4) Delete kernel partition entries (critical — kernel holds stale GPT)
+    warn "Removing kernel partition entries..."
+    partx -d --nr 1-64 "$disk" 2>/dev/null || true
+
+    # 5) Wipe partition table and all signatures
     warn "Wiping partition table..."
     dd if=/dev/zero of="$disk" bs=1M count=10 2>/dev/null || true
     sync
 
-    # Force kernel to reread (now empty) partition table
-    blockdev --flushbufs "$disk" 2>/dev/null || true
-    partprobe "$disk" 2>/dev/null || udevadm settle 2>/dev/null || true
+    # 6) Force kernel to reread empty table
+    blockdev --rereadpt "$disk" 2>/dev/null || udevadm settle 2>/dev/null || true
 
     parted -s "$disk" mklabel gpt
     parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
