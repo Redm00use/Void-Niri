@@ -160,6 +160,32 @@ partition_and_mount() {
     [ "$separate_home" = true ] && hm="${disk}${pfx}${n}" && n=$((n+1))
     root="${disk}${pfx}${n}"
 
+    # Wait for device node (udev may be slow in live ISO)
+    if [ ! -b "$disk" ]; then
+        warn "Waiting for $disk device node..."
+        for _ in $(seq 1 20); do
+            [ -b "$disk" ] && break
+            sleep 0.5
+        done
+        if [ ! -b "$disk" ]; then
+            # Fallback: try mknod if major:minor available from sysfs
+            local devname maj min
+            devname=$(basename "$disk")
+            if [ -f "/sys/block/$devname/dev" ]; then
+                maj=$(awk '{print $1}' "/sys/block/$devname/dev" 2>/dev/null)
+                min=$(awk '{print $2}' "/sys/block/$devname/dev" 2>/dev/null)
+                [ -n "$maj" ] && [ -n "$min" ] && mknod "$disk" b "$maj" "$min" 2>/dev/null || true
+            fi
+        fi
+    fi
+
+    if [ ! -b "$disk" ]; then
+        error "Device $disk not available. Check: ls -la /dev/vd* /sys/block/"
+        ls -la /dev/vd* 2>/dev/null || true
+        ls /sys/block/ 2>/dev/null || true
+        exit 1
+    fi
+
     info "Разметка GPT на $disk..."
     parted -s "$disk" mklabel gpt
     parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
