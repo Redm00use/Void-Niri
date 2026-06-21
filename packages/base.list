@@ -50,7 +50,7 @@ nss-mdns
 qt5-styleplugins
 # System
 bc
-noto-fonts
+noto-fonts-ttf
 noto-fonts-emoji
 font-awesome
 nerd-fonts
