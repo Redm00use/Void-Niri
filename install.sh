@@ -297,6 +297,27 @@ partition_and_mount() {
         udevadm settle 2>/dev/null || true
     fi
 
+    # Wait for partition device nodes to appear
+    # (udev race: nodes may not exist right after sgdisk/parted)
+    local wait_for="$efi"
+    [ -n "$sw" ] && wait_for="$wait_for $sw"
+    [ -n "$hm" ] && wait_for="$wait_for $hm"
+    wait_for="$wait_for $root"
+    info "Waiting for partition device nodes..."
+    for dev in $wait_for; do
+        local waited=0
+        while [ "$waited" -lt 10 ]; do
+            [ -b "$dev" ] && break
+            sleep 1
+            waited=$((waited + 1))
+        done
+        if [ ! -b "$dev" ]; then
+            error "Partition device $dev did not appear after 10s"
+            ls -la "${dev%[0-9]*}"* 2>/dev/null || true
+            exit 1
+        fi
+    done
+
     # Форматирование
     info "mkfs.fat $efi..."
     mkfs.fat -F32 "$efi"
