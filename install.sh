@@ -206,8 +206,21 @@ partition_and_mount() {
         [ -b "$sw" ] && swapoff "$sw" 2>/dev/null || true
     done
 
-    # 3) Close any btrfs/mdadm/LUKS on this disk
+    # 3) Aggressively release any kernel holds on partition 3
+    #    (btrfs caches device references even after unmount)
+    local part3="/dev/${disk_base}3"
+    if [ -b "$part3" ]; then
+        # Lazy unmount + kill any process still using it
+        umount -l "$part3" 2>/dev/null || true
+        fuser -km "$part3" 2>/dev/null || true
+        # Proper mount+unmount cycle to release btrfs ref
+        mount "$part3" /mnt 2>/dev/null && umount /mnt 2>/dev/null || true
+    fi
+    umount -l /mnt 2>/dev/null || true
+    # Forget all btrfs devices (scan refs)
     btrfs device scan --forget 2>/dev/null || true
+    # Reload btrfs module to force-release any stale device refs
+    (modprobe -r btrfs 2>/dev/null; modprobe btrfs 2>/dev/null) || true
     dmsetup remove_all 2>/dev/null || true
 
     # 4) Wipe everything (signatures + GPT headers)
