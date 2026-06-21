@@ -53,13 +53,13 @@ prepare_live() {
     fi
 
     local missing=""
-    for cmd in parted mkfs.fat mkfs.btrfs mkfs.ext4 mkswap cryptsetup rsync blkid lsblk; do
+    for cmd in parted mkfs.fat mkfs.btrfs mkfs.ext4 mkswap cryptsetup rsync blkid lsblk sgdisk; do
         command -v "$cmd" &>/dev/null || missing="$missing $cmd"
     done
 
     if [ -n "$missing" ]; then
         warn "Installing missing tools:$missing"
-        xbps-install -Sy parted btrfs-progs cryptsetup rsync util-linux e2fsprogs dosfstools
+        xbps-install -Sy parted gptfdisk btrfs-progs cryptsetup rsync util-linux e2fsprogs dosfstools
     fi
 
     # Fix Cyrillic console font (Void live ISO lacks Cyrillic glyphs by default)
@@ -207,21 +207,31 @@ partition_and_mount() {
     done
 
     # 3) Close any btrfs/mdadm/LUKS on this disk
-    btrfs device scan 2>/dev/null || true
+    # Forget all btrfs devices first (btrfs holds a ref on the partition)
+    btrfs device scan --forget 2>/dev/null || true
 
     # 4) Delete kernel partition entries (critical — kernel holds stale GPT)
     warn "Removing kernel partition entries..."
     partx -d --nr 1-64 "$disk" 2>/dev/null || true
 
-    # 5) Wipe partition table and all signatures
+    # 5) Force-zap all signatures (wipefs -af can wipe in-use devices)
     warn "Wiping partition table..."
+    wipefs -af "$disk" 2>/dev/null || true
     dd if=/dev/zero of="$disk" bs=1M count=10 2>/dev/null || true
     sync
 
     # 6) Force kernel to reread empty table
     blockdev --rereadpt "$disk" 2>/dev/null || udevadm settle 2>/dev/null || true
 
-    parted -s "$disk" mklabel gpt
+    # 7) Create fresh GPT (sgdisk -Z is more forceful than parted mklabel
+    #    at handling busy devices)
+    if command -v sgdisk &>/dev/null; then
+        sgdisk -Z "$disk" 2>/dev/null || true
+    else
+        parted -s "$disk" mklabel gpt
+    fi
+    udevadm settle 2>/dev/null || true
+
     parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
     parted -s "$disk" set 1 esp on
 
