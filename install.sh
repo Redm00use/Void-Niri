@@ -188,6 +188,19 @@ partition_and_mount() {
     fi
 
     info "Разметка GPT на $disk..."
+
+    # Unmount any stale partitions from previous failed install attempts
+    local mnt
+    mnt=$(lsblk -n -o MOUNTPOINT "$disk"* 2>/dev/null | grep -v '^$' || true)
+    if [ -n "$mnt" ]; then
+        warn "Unmounting stale partitions..."
+        echo "$mnt" | while read -r mp; do umount "$mp" 2>/dev/null || true; done
+    fi
+    swapoff "$disk"* 2>/dev/null || true
+
+    # Wipe existing signatures (from prior failed runs)
+    wipefs -a "$disk" 2>/dev/null || true
+
     parted -s "$disk" mklabel gpt
     parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
     parted -s "$disk" set 1 esp on
