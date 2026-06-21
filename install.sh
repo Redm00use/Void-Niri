@@ -159,6 +159,7 @@ partition_and_mount() {
     [ "$swap_gib" -gt 0 ] && sw="${disk}${pfx}${n}" && n=$((n+1))
     [ "$separate_home" = true ] && hm="${disk}${pfx}${n}" && n=$((n+1))
     root="${disk}${pfx}${n}"
+    echo "DEBUG top: n=$n sw=$sw root=$root" >&2
 
     # Wait for device node (udev may be slow in live ISO)
     if [ ! -b "$disk" ]; then
