@@ -16,6 +16,25 @@ CONFIG_DIR="$SCRIPT_DIR/configs"
 PACKAGES_DIR="$SCRIPT_DIR/packages"
 SETUP_DIR="$SCRIPT_DIR/setup"
 
+# Track state for trap cleanup
+STATE_MOUNTED=false
+STATE_LUKS_OPENED=false
+
+cleanup() {
+    local exit_code=$?
+    echo -e "\n${BLUE}--- Cleanup ---${NC}"
+    if $STATE_MOUNTED; then
+        umount -R /mnt 2>/dev/null || true
+        info "Mounts cleaned."
+    fi
+    if $STATE_LUKS_OPENED; then
+        cryptsetup close cryptroot 2>/dev/null || true
+        info "LUKS closed."
+    fi
+    exit "$exit_code"
+}
+trap cleanup EXIT
+
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
 
@@ -49,6 +68,18 @@ prepare_live() {
     if ! command -v xbps-install &>/dev/null; then
         error "Run from Void Linux Live ISO (glibc!)"
         error "Download: https://voidlinux.org/download/"
+        exit 1
+    fi
+
+    # Check UEFI
+    if [ ! -d /sys/firmware/efi ]; then
+        error "UEFI not detected. Installer requires UEFI boot."
+        exit 1
+    fi
+
+    # Check network
+    if ! ping -c1 -W3 repo-default.voidlinux.org >/dev/null 2>&1; then
+        error "No network. Connect first (dhcpcd / wpa_supplicant)."
         exit 1
     fi
 
