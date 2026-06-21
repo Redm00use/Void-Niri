@@ -349,8 +349,9 @@ partition_and_mount() {
 
     # Форматирование
     info "mkfs.fat $efi..."
+    [ -b "$efi" ] || { error "$efi is not a block device"; exit 1; }
     mkfs.fat -F32 "$efi"
-    [ -n "$sw" ] && { mkswap "$sw"; swapon "$sw"; }
+    [ -n "$sw" ] && { [ -b "$sw" ] || { error "$sw is not a block device"; exit 1; }; mkswap "$sw"; swapon "$sw"; }
     [ -n "$hm" ] && { [ "$fs" = btrfs ] && mkfs.btrfs -f "$hm" || mkfs.ext4 -F "$hm"; }
 
     local rootdev="$root"
@@ -359,12 +360,15 @@ partition_and_mount() {
         read -r -s -p "LUKS пароль: " pass; echo
         echo -n "$pass" | cryptsetup luksFormat --batch-mode "$root" -
         echo -n "$pass" | cryptsetup open "$root" cryptroot -
+        STATE_LUKS_OPENED=true
         rootdev="/dev/mapper/cryptroot"
     fi
 
+    [ -b "$rootdev" ] || { error "$rootdev is not a block device"; exit 1; }
     if [ "$fs" = btrfs ]; then
         mkfs.btrfs -f "$rootdev"
         mount "$rootdev" /mnt
+        STATE_MOUNTED=true
         btrfs sub create /mnt/@
         [ -z "$hm" ] && btrfs sub create /mnt/@home
         umount /mnt
@@ -372,11 +376,13 @@ partition_and_mount() {
     else
         mkfs.ext4 -F "$rootdev"
         mount "$rootdev" /mnt
+        STATE_MOUNTED=true
     fi
 
     mkdir -p /mnt/boot && mount "$efi" /mnt/boot
     if [ -n "$hm" ]; then
         mkdir -p /mnt/home && mount "$hm" /mnt/home
+    [ -b "$rootdev" ] || { error "$rootdev is not a block device"; exit 1; }
     elif [ "$fs" = btrfs ]; then
         mkdir -p /mnt/home && mount -o subvol=@home,compress=zstd,noatime "$rootdev" /mnt/home
     fi
@@ -777,10 +783,6 @@ EOF
         cp -r "$SCRIPT_DIR"/* "$repodst/" 2>/dev/null || true
     chown -R 1000:1000 "/mnt/home/$user_name"
 
-    # 6. Размонтирование
-    info "Размонтирование..."
-    umount -R /mnt 2>/dev/null || true
-    [ "$luks" = true ] && cryptsetup close cryptroot 2>/dev/null || true
 
     # 7. Готово
     echo
