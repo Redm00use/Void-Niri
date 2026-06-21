@@ -201,7 +201,9 @@ partition_and_mount() {
         parted -s "$disk" mkpart primary "$fs" "${cur}MiB" "$((cur+home_gib*1024))MiB"
         cur=$((cur+home_gib*1024))
     fi
-    parted -s "$disk" mkpart primary "${luks:+ext4:$fs}" "${cur}MiB" 100%
+    local root_fs="$fs"
+    [ "$luks" = true ] && root_fs="ext4"
+    parted -s "$disk" mkpart primary "$root_fs" "${cur}MiB" 100%
 
     # Форматирование
     info "mkfs.fat $efi..."
