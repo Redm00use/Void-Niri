@@ -240,21 +240,19 @@ partition_and_mount() {
     if command -v sgdisk &>/dev/null; then
         warn "Creating partitions via sgdisk..."
         sgdisk -o "$disk" || true                                    # fresh GPT
-        sgdisk -n 1:1MiB:513MiB -t 1:ef00 "$disk" || true            # ESP
+        # Use relative sizes to avoid sector boundary overlaps with sgdisk
+        sgdisk -n 1:1MiB:+512MiB -t 1:ef00 "$disk" || true            # ESP (512MiB)
 
-        local cur=513
-        local n=2
+        local n=2 cur=513
         if [ -n "$sw" ]; then
-            local sw_end=$((cur+swap_gib*1024))
-            sgdisk -n "$n:${cur}MiB:${sw_end}MiB" -t "$n":8200 "$disk" || true
-            cur=$sw_end
+            sgdisk -n "$n:${cur}MiB:+${swap_gib}GiB" -t "$n":8200 "$disk" || true
             n=$((n+1))
+            cur=$((cur+swap_gib*1024))
         fi
         if [ -n "$hm" ]; then
-            local hm_end=$((cur+home_gib*1024))
-            sgdisk -n "$n:${cur}MiB:${hm_end}MiB" "$disk" || true
-            cur=$hm_end
+            sgdisk -n "$n:${cur}MiB:+${home_gib}GiB" "$disk" || true
             n=$((n+1))
+            cur=$((cur+home_gib*1024))
         fi
         sgdisk -n "$n:${cur}MiB:0" -t "$n":8300 "$disk" || true      # root to end
         udevadm settle 2>/dev/null || true
