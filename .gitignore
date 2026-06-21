@@ -1,0 +1,4 @@
+generated/
+result/
+*.bak
+.DS_Store

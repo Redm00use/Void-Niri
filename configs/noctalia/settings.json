@@ -1,0 +1,16 @@
+{
+    "settings": {
+        "ui": {
+            "fontDefault": "Noto Sans",
+            "fontDefaultScale": 1.0,
+            "fontFixed": "JetBrainsMono Nerd Font",
+            "fontFixedScale": 1.0
+        },
+        "general": {
+            "language": "ru",
+            "clockFormat": "HH:mm",
+            "clockStyle": "24h"
+        }
+    },
+    "version": 2
+}

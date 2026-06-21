@@ -1,0 +1,19 @@
+#!/bin/bash
+# Bluetooth devices watch daemon (из NixOS modules/system/core/bluetooth.nix)
+# Управляемые устройства:
+#   68:FE:F7:62:E8:2A
+#   1C:1A:C0:F2:53:BE
+#   40:B3:FA:06:E9:DB
+set -eu
+
+DEVICES="68:FE:F7:62:E8:2A 1C:1A:C0:F2:53:BE 40:B3:FA:06:E9:DB"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+while true; do
+    for mac in $DEVICES; do
+        if ! "$SCRIPT_DIR/bluetooth-reconnect" "$mac"; then
+            echo "Reconnect cycle failed for $mac"
+        fi
+    done
+    sleep 2
+done

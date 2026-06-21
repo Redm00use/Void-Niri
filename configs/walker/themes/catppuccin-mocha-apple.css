@@ -1,0 +1,174 @@
+@define-color foreground #cdd6f4;
+@define-color foreground_muted rgba(205, 214, 244, 0.68);
+@define-color foreground_subtle #7f849c;
+@define-color background rgba(30, 30, 46, 0.68);
+@define-color background_strong rgba(24, 24, 37, 0.82);
+@define-color surface rgba(49, 50, 68, 0.78);
+@define-color surface_hover rgba(69, 71, 90, 0.92);
+@define-color border rgba(180, 190, 254, 0.18);
+@define-color accent #89b4fa;
+@define-color accent_soft rgba(137, 180, 250, 0.18);
+@define-color accent_lavender #cba6f7;
+
+#window,
+#box,
+#aiScroll,
+#aiList,
+#search,
+#password,
+#input,
+#prompt,
+#clear,
+#typeahead,
+#list,
+child,
+scrollbar,
+slider,
+#item,
+#text,
+#label,
+#bar,
+#sub,
+#activationlabel {
+  all: unset;
+  color: @foreground;
+  font-family: "SF Pro Display", "SF Pro Text", "Noto Sans", sans-serif;
+}
+
+#window {
+  background: transparent;
+  color: @foreground;
+}
+
+#box {
+  background: @background;
+  border: 1px solid @border;
+  border-radius: 30px;
+  padding: 18px;
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.34),
+    0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+#search {
+  background: @background_strong;
+  border: 1px solid rgba(180, 190, 254, 0.12);
+  border-radius: 22px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 1px 2px rgba(0, 0, 0, 0.10);
+}
+
+#prompt {
+  margin-left: 4px;
+  margin-right: 12px;
+  color: @foreground_muted;
+  opacity: 1;
+}
+
+#clear {
+  color: @foreground_subtle;
+  opacity: 1;
+}
+
+#input,
+#typeahead,
+#password {
+  background: transparent;
+  border-radius: 18px;
+  font-size: 24px;
+  font-weight: 500;
+}
+
+#input {
+  color: @foreground;
+  caret-color: @accent;
+}
+
+#input placeholder {
+  color: @foreground_subtle;
+  opacity: 1;
+}
+
+#typeahead {
+  color: rgba(205, 214, 244, 0.35);
+}
+
+#list {
+  background: rgba(17, 17, 27, 0.22);
+  border-radius: 22px;
+  padding: 8px;
+}
+
+child {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  padding: 12px 14px;
+}
+
+child:selected,
+child:hover {
+  background: @surface_hover;
+  border: 1px solid rgba(137, 180, 250, 0.14);
+}
+
+#icon {
+  margin-right: 14px;
+}
+
+#label {
+  color: @foreground;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#sub {
+  color: @foreground_muted;
+  font-size: 12px;
+  opacity: 1;
+}
+
+#activationlabel {
+  color: transparent;
+  font-size: 1px;
+}
+
+#bar {
+  opacity: 0;
+}
+
+#cfgerr {
+  background: rgba(243, 139, 168, 0.18);
+  color: #f38ba8;
+  border-radius: 14px;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+
+.barentry {
+  background: transparent;
+}
+
+.activation #label,
+.activation #icon,
+.activation #search {
+  opacity: 0.55;
+}
+
+.aiItem {
+  background: @surface;
+  border-radius: 16px;
+  padding: 10px 12px;
+}
+
+.aiItem.assistant {
+  background: @background_strong;
+}
+
+scrollbar,
+slider {
+  opacity: 0;
+}

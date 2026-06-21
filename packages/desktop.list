@@ -1,0 +1,117 @@
+# Void Linux — desktop packages
+# Устанавливаются только для роли "desktop"
+
+# Niri (compositor)
+niri
+
+# Terminal
+wezterm
+
+# Launchers
+rofi
+rofi-calc
+rofi-emoji
+walker
+
+# File manager
+nautilus
+gvfs
+yazi
+ouch
+glow
+ripdrag
+
+# Qt/KDE tools
+qt5ct
+qt6ct
+kvantum
+ark
+
+# Media
+mpv
+yt-dlp
+cava
+gpu-screen-recorder
+obs
+
+# Gaming
+steam
+lutris
+mangohud
+gamemode
+gamescope
+protonup-qt
+
+# Virtualization
+qemu
+libvirt
+virt-manager
+
+# Image viewer
+qimgv
+krita
+
+# Office
+libreoffice
+
+# ZRAM
+zramen
+
+# Android
+android-tools
+
+# System
+tlp
+thermald
+# NOT IN VOID REPOS: nbfc-linux
+
+# Cloudflare WARP
+# OpenTabletDriver
+# NOT IN VOID REPOS: opentabletdriver
+
+# Vesktop
+# NOT IN VOID REPOS: vesktop
+
+# NOT IN VOID REPOS: cloudflare-warp
+
+# Email
+mailspring
+
+# Bittorrent
+qbittorrent
+
+# Messenger
+discord
+telegram-desktop
+
+# Flatpak additions
+flatpak
+
+# Note-taking
+obsidian
+
+# Fun
+cowsay
+cmatrix
+# NOT IN VOID REPOS: pokemon-colorscripts-git
+
+# Network tools
+freerdp
+
+# Exfat
+exfatprogs
+fuse-exfat
+
+# eww (widgets)
+# NOT IN VOID REPOS: eww
+
+# codex
+# NOT IN VOID REPOS: codex
+
+# AccountsService
+accountsservice
+
+# System extras
+usbredir
+system-config-printer
+gowall

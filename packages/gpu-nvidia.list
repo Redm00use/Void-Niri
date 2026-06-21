@@ -1,0 +1,8 @@
+# Void Linux — NVIDIA GPU drivers
+nvidia
+nvidia-libs-32bit
+nvidia-vaapi-driver
+libva
+libva-utils
+vulkan-loader
+libvdpau

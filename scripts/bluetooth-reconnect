@@ -1,0 +1,35 @@
+#!/bin/bash
+# Bluetooth device reconnect (из NixOS modules/system/core/bluetooth.nix)
+# Запуск: bluetooth-device-reconnect <MAC>
+set -eu
+
+MAC="${1:?missing bluetooth mac}"
+TRIES=99999999
+DELAY=2
+
+bluetoothctl power on >/dev/null 2>&1 || true
+bluetoothctl agent on >/dev/null 2>&1 || true
+bluetoothctl default-agent >/dev/null 2>&1 || true
+bluetoothctl trust "$MAC" >/dev/null 2>&1 || true
+
+ATTEMPT=1
+while [ "$ATTEMPT" -le "$TRIES" ]; do
+    if bluetoothctl info "$MAC" | grep -q "Connected: yes"; then
+        echo "Bluetooth device $MAC already connected on attempt $ATTEMPT"
+        exit 0
+    fi
+
+    echo "Bluetooth device $MAC reconnect attempt $ATTEMPT/$TRIES"
+    bluetoothctl connect "$MAC" >/dev/null 2>&1 || true
+    sleep "$DELAY"
+
+    if bluetoothctl info "$MAC" | grep -q "Connected: yes"; then
+        echo "Bluetooth device $MAC connected on attempt $ATTEMPT"
+        exit 0
+    fi
+
+    ATTEMPT=$((ATTEMPT + 1))
+done
+
+echo "Failed to connect bluetooth device $MAC after $TRIES attempts"
+exit 1

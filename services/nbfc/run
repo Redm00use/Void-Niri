@@ -1,0 +1,7 @@
+#!/bin/sh
+# Runit service: NBFC (Notebook Fan Control)
+# Аналог systemd-сервиса nbfc-linux из NixOS
+# Конфиг: /etc/nbfc/nbfc.json
+exec 2>&1
+[ -x /usr/bin/nbfc_service ] || exit 1
+exec nbfc_service --config /etc/nbfc/nbfc.json

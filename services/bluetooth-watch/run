@@ -1,0 +1,6 @@
+#!/bin/sh
+# Runit service: Bluetooth device watch daemon
+# Аналог systemd-сервиса bluetooth-keyboard-watch из NixOS
+# Автоматически переподключает управляемые BT-устройства
+exec 2>&1
+exec /usr/local/bin/bluetooth-devices-watch

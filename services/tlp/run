@@ -1,0 +1,8 @@
+#!/bin/sh
+# Runit service: TLP (Power Management)
+# Аналог systemd-сервиса tlp из NixOS
+# На старте применяет настройки и выходит (oneshot в systemd)
+exec 2>&1
+[ -x /usr/bin/tlp ] || exit 1
+echo "Applying TLP settings..."
+exec tlp start

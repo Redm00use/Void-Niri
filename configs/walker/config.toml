@@ -1,0 +1,12 @@
+app_launch_prefix = ""
+as_window = true
+close_when_open = true
+disable_click_to_close = false
+force_keyboard_focus = true
+hotreload_theme = false
+locale = ""
+monitor = ""
+terminal_title_flag = ""
+theme = "catppuccin-mocha-apple"
+max_results = 50
+timeout = 0

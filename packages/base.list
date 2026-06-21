@@ -1,0 +1,82 @@
+# Void Linux — base system packages
+# Устанавливаются на все системы (desktop и server)
+base-system
+git
+curl wget
+neovim
+zsh zsh-syntax-highlighting
+eza
+tree
+ripgrep fd
+jq
+unzip unrar zip
+ffmpeg
+fzf
+openssh
+
+# Networking
+NetworkManager
+network-manager-applet
+dnsmasq
+
+# Bluetooth
+bluez
+blueman
+bluez-alsa
+
+# Audio
+pipewire wireplumber
+alsa-pipewire
+pamixer pavucontrol
+
+# Wayland basics
+wayland wayland-protocols
+wl-clipboard wtype
+slurp grim
+swaybg
+xdg-desktop-portal
+xdg-desktop-portal-wlr
+xdg-desktop-portal-gtk
+polkit-gnome
+gnome-keyring
+
+# Fonts
+# Display
+playerctl
+cliphist
+avahi
+nss-mdns
+# Qt extras
+qt5-styleplugins
+# System
+bc
+noto-fonts
+noto-fonts-emoji
+font-awesome
+nerd-fonts
+nerd-fonts-jetbrains-mono
+
+# Power
+upower
+acpi
+
+# Printing
+cups
+gutenprint
+epson-inkjet-printer-escpr
+
+# Display
+brightnessctl
+
+# Utilities
+btop
+fastfetch
+direnv
+flatpak
+# misc
+usbutils
+imagemagick
+gnome-disk-utility
+gparted
+xdg-user-dirs
+xdg-utils

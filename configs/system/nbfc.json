@@ -1,0 +1,4 @@
+# NBFC config (из NixOS modules/system/core/nbfc.nix)
+{
+  "SelectedConfigId": "HP EliteBook 8470p"
+}

@@ -1,0 +1,13 @@
+# Void Linux — AMD GPU drivers
+mesa
+mesa-vulkan-radeon
+mesa-vaapi
+mesa-vdpau
+vulkan-loader
+amdvlk
+libva
+libva-utils
+libvdpau
+libvdpau-va-gl
+rocm-opencl-runtime
+rocm-hip-runtime

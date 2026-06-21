@@ -1,0 +1,6 @@
+#!/bin/sh
+# Runit service: Cloudflare WARP
+# Аналог systemd-сервиса cloudflare-warp из NixOS
+exec 2>&1
+[ -x /usr/bin/warp-svc ] || exit 1
+exec warp-svc

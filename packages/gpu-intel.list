@@ -1,0 +1,11 @@
+# Void Linux — Intel GPU drivers
+mesa
+mesa-vulkan-intel
+mesa-vaapi
+mesa-vdpau
+vulkan-loader
+intel-media-driver
+libva
+libva-utils
+libvdpau
+libvdpau-va-gl
