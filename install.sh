@@ -207,46 +207,82 @@ partition_and_mount() {
     done
 
     # 3) Close any btrfs/mdadm/LUKS on this disk
-    # Forget all btrfs devices first (btrfs holds a ref on the partition)
     btrfs device scan --forget 2>/dev/null || true
+    dmsetup remove_all 2>/dev/null || true
 
-    # 4) Delete kernel partition entries (critical — kernel holds stale GPT)
-    warn "Removing kernel partition entries..."
-    partx -d --nr 1-64 "$disk" 2>/dev/null || true
-
-    # 5) Force-zap all signatures (wipefs -af can wipe in-use devices)
+    # 4) Wipe everything (signatures + GPT headers)
     warn "Wiping partition table..."
     wipefs -af "$disk" 2>/dev/null || true
     dd if=/dev/zero of="$disk" bs=1M count=10 2>/dev/null || true
     sync
 
-    # 6) Force kernel to reread empty table
+    # 5) Force kernel to reread (now empty) table
     blockdev --rereadpt "$disk" 2>/dev/null || udevadm settle 2>/dev/null || true
 
-    # 7) Destroy old partition table (sgdisk -Z is more forceful than parted)
+    # 6) Try to find what's holding partition 3 busy
+    lsof "/dev/${disk_base}3" 2>/dev/null || fuser "/dev/${disk_base}3" 2>/dev/null || true
+
+    # 7) Create fresh GPT + partitions via sgdisk (handles 'in use' kernel
+    #    partitions better than parted)
     if command -v sgdisk &>/dev/null; then
-        sgdisk -Z "$disk" 2>/dev/null || true
-        blockdev --rereadpt "$disk" 2>/dev/null || true
-    fi
-    udevadm settle 2>/dev/null || true
+        warn "Creating partitions via sgdisk..."
+        sgdisk -o "$disk" 2>/dev/null || true                      # fresh GPT
+        sgdisk -n 1:1MiB:513MiB -t 1:ef00 "$disk" 2>/dev/null      # ESP
 
-    # Always create a fresh GPT via parted so parted recognises the label
-    parted -s "$disk" mklabel gpt
-    parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
-    parted -s "$disk" set 1 esp on
+        local cur=513
+        local n=2
+        if [ -n "$sw" ]; then
+            local sw_end=$((cur+swap_gib*1024))
+            sgdisk -n "$n:${cur}MiB:${sw_end}MiB" -t "$n":8200 "$disk" 2>/dev/null
+            cur=$sw_end
+            n=$((n+1))
+        fi
+        if [ -n "$hm" ]; then
+            local hm_end=$((cur+home_gib*1024))
+            sgdisk -n "$n:${cur}MiB:${hm_end}MiB" "$disk" 2>/dev/null
+            cur=$hm_end
+            n=$((n+1))
+        fi
+        sgdisk -n "$n:${cur}MiB:0" -t "$n":8300 "$disk" 2>/dev/null  # root to end
+        udevadm settle 2>/dev/null || true
 
-    local cur=513
-    if [ -n "$sw" ]; then
-        parted -s "$disk" mkpart primary linux-swap "${cur}MiB" "$((cur+swap_gib*1024))MiB"
-        cur=$((cur+swap_gib*1024))
+        # Try to make partition devices appear
+        # partx --add reads on-disk GPT and adds entries to the kernel
+        if ! blockdev --rereadpt "$disk" 2>/dev/null; then
+            partx --add "$disk" 2>/dev/null || true
+        fi
+        udevadm settle 2>/dev/null || true
+
+        # If device nodes still don't exist, create them manually
+        local major
+        major=$(awk '{print $1}' "/sys/block/$disk_base/dev" 2>/dev/null)
+        if [ -n "$major" ]; then
+            for i in 1 2 3 4; do
+                [ -b "/dev/${disk_base}$i" ] || mknod "/dev/${disk_base}$i" b "$major" "$i" 2>/dev/null || true
+            done
+        fi
+        udevadm settle 2>/dev/null || true
+    else
+        # Fallback: parted (legacy path)
+        warn "Creating partitions via parted (fallback)..."
+        parted -s "$disk" mklabel gpt
+        parted -s "$disk" mkpart ESP fat32 1MiB 513MiB
+        parted -s "$disk" set 1 esp on
+
+        local cur=513
+        if [ -n "$sw" ]; then
+            parted -s "$disk" mkpart primary linux-swap "${cur}MiB" "$((cur+swap_gib*1024))MiB"
+            cur=$((cur+swap_gib*1024))
+        fi
+        if [ -n "$hm" ]; then
+            parted -s "$disk" mkpart primary "$fs" "${cur}MiB" "$((cur+home_gib*1024))MiB"
+            cur=$((cur+home_gib*1024))
+        fi
+        local root_fs="$fs"
+        [ "$luks" = true ] && root_fs="ext4"
+        parted -s "$disk" mkpart primary "$root_fs" "${cur}MiB" 100%
+        udevadm settle 2>/dev/null || true
     fi
-    if [ -n "$hm" ]; then
-        parted -s "$disk" mkpart primary "$fs" "${cur}MiB" "$((cur+home_gib*1024))MiB"
-        cur=$((cur+home_gib*1024))
-    fi
-    local root_fs="$fs"
-    [ "$luks" = true ] && root_fs="ext4"
-    parted -s "$disk" mkpart primary "$root_fs" "${cur}MiB" 100%
 
     # Форматирование
     info "mkfs.fat $efi..."
