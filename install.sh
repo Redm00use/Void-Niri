@@ -47,8 +47,8 @@ prepare_live() {
     print_header "Подготовка Void Linux Live-окружения"
 
     if ! command -v xbps-install &>/dev/null; then
-        error "Запустите из Void Linux Live ISO (glibc!)"
-        error "Скачать: https://voidlinux.org/download/"
+        error "Run from Void Linux Live ISO (glibc!)"
+        error "Download: https://voidlinux.org/download/"
         exit 1
     fi
 
@@ -58,10 +58,40 @@ prepare_live() {
     done
 
     if [ -n "$missing" ]; then
-        warn "Устанавливаю недостающие инструменты:$missing"
+        warn "Installing missing tools:$missing"
         xbps-install -Sy parted btrfs-progs cryptsetup rsync util-linux e2fsprogs dosfstools
     fi
-    info "Готово."
+
+    # Fix Cyrillic console font (Void live ISO lacks Cyrillic glyphs by default)
+    # Strategy: try built-in kbd fonts first, then terminus-font
+    local font_set=false
+
+    # Try built-in kbd fonts first (kbd is always present on Void)
+    for f in \
+        /usr/share/kbd/consolefonts/UniCyr_8x16.psf.gz \
+        /usr/share/kbd/consolefonts/cyr-sun16.psf.gz \
+        /usr/share/kbd/consolefonts/Cyr_a8x16.psf.gz; do
+        if [ -f "$f" ]; then
+            setfont "$f" 2>/dev/null && { font_set=true; break; }
+        fi
+    done
+
+    # If no built-in Cyrillic font found, try installing terminus-font
+    if ! $font_set && (xbps-query terminus-font &>/dev/null || xbps-install -Sy terminus-font 2>/dev/null); then
+        for f in \
+            /usr/share/kbd/consolefonts/ter-cyr16b.psf.gz \
+            /usr/share/kbd/consolefonts/ter-cyr14b.psf.gz; do
+            if [ -f "$f" ]; then
+                setfont "$f" 2>/dev/null && { font_set=true; break; }
+            fi
+        done
+    fi
+
+    if $font_set; then
+        info "Ready. Console font set for Cyrillic support."
+    else
+        warn "Could not set Cyrillic console font - Russian text may display as squares."
+    fi
 }
 
 #===============================================================================
@@ -78,11 +108,37 @@ choose_tz()      { read -r -p "Часовой пояс [Europe/Kyiv]: "; echo "$
 choose_locale()  { read -r -p "Локаль [ru_RU.UTF-8]: "; echo "${REPLY:-ru_RU.UTF-8}"; }
 
 select_disk() {
-    echo; lsblk -d -e 7,11 -o NAME,SIZE,MODEL,TYPE 2>/dev/null; echo
+    echo
+    echo "Available disks:"
+    echo "----------------------------------------"
+    # Show all non-removable, non-loop, non-rom block devices
+    # Filter: exclude loop (7), exclude cd/dvd (11), only show disk type
+    lsblk -d -e 7,11 -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep -E 'disk' || lsblk -d -e 7 -o NAME,SIZE,TYPE,MODEL 2>/dev/null
+    echo "----------------------------------------"
+
+    # Auto-detect candidate disks (non-removable, exclude live USB by size hint if possible)
+    local candidates
+    candidates=$(lsblk -d -n -e 7,11 -o NAME,TYPE,SIZE 2>/dev/null \
+        | awk '$2=="disk" {print $1}' | tr '\n' ' ')
+
+    # If exactly one candidate, auto-select it
+    local count
+    count=$(echo "$candidates" | wc -w)
+    if [ "$count" -eq 1 ]; then
+        local dev="/dev/$candidates"
+        info "Auto-selected disk: $dev"
+        echo "$dev"
+        return
+    fi
+
+    # Otherwise let user pick
+    echo
+    echo "Detected disks: $candidates"
+    echo "(Examples: sda, nvme0n1, vda — the NAME column above)"
     while :; do
-        read -r -p "Диск (например nvme0n1, sda): "
+        read -r -p "Disk (e.g. vda, sda, nvme0n1): "
         [ -b "/dev/$REPLY" ] && { echo "/dev/$REPLY"; return; }
-        error "Не найден: /dev/$REPLY"
+        error "Not found: /dev/$REPLY"
     done
 }
 
@@ -92,6 +148,7 @@ select_disk() {
 partition_and_mount() {
     local disk="$1" fs="$2" separate_home="$3" home_gib="$4" swap_gib="$5" luks="$6"
 
+    # Suffix for partition numbers: nvme0n1p1, mmcblk0p1 vs sda1, vda1
     local pfx=""
     [[ "$disk" =~ (nvme|mmcblk) ]] && pfx="p"
 
