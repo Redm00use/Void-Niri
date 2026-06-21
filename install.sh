@@ -108,37 +108,38 @@ choose_tz()      { read -r -p "Часовой пояс [Europe/Kyiv]: "; echo "$
 choose_locale()  { read -r -p "Локаль [ru_RU.UTF-8]: "; echo "${REPLY:-ru_RU.UTF-8}"; }
 
 select_disk() {
-    echo
-    echo "Available disks:"
-    echo "----------------------------------------"
-    # Show all non-removable, non-loop, non-rom block devices
-    # Filter: exclude loop (7), exclude cd/dvd (11), only show disk type
-    lsblk -d -e 7,11 -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep -E 'disk' || lsblk -d -e 7 -o NAME,SIZE,TYPE,MODEL 2>/dev/null
-    echo "----------------------------------------"
+    # All UI output goes to stderr so stdout only contains the chosen disk path
+    {
+        echo
+        echo "Available disks:"
+        echo "----------------------------------------"
+        lsblk -d -e 7,11 -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep -E 'disk' || lsblk -d -e 7 -o NAME,SIZE,TYPE,MODEL 2>/dev/null
+        echo "----------------------------------------"
+    } >&2
 
-    # Auto-detect candidate disks (non-removable, exclude live USB by size hint if possible)
     local candidates
     candidates=$(lsblk -d -n -e 7,11 -o NAME,TYPE,SIZE 2>/dev/null \
         | awk '$2=="disk" {print $1}' | tr '\n' ' ')
 
-    # If exactly one candidate, auto-select it
     local count
     count=$(echo "$candidates" | wc -w)
     if [ "$count" -eq 1 ]; then
         local dev="/dev/$candidates"
-        info "Auto-selected disk: $dev"
+        info "Auto-selected disk: $dev" >&2
         echo "$dev"
         return
     fi
 
-    # Otherwise let user pick
-    echo
-    echo "Detected disks: $candidates"
-    echo "(Examples: sda, nvme0n1, vda — the NAME column above)"
+    {
+        echo
+        echo "Detected disks: $candidates"
+        echo "(Examples: sda, nvme0n1, vda — the NAME column above)"
+    } >&2
+
     while :; do
         read -r -p "Disk (e.g. vda, sda, nvme0n1): "
         [ -b "/dev/$REPLY" ] && { echo "/dev/$REPLY"; return; }
-        error "Not found: /dev/$REPLY"
+        error "Not found: /dev/$REPLY" >&2
     done
 }
 
