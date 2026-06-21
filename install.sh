@@ -159,7 +159,6 @@ partition_and_mount() {
     [ "$swap_gib" -gt 0 ] && sw="${disk}${pfx}${n}" && n=$((n+1))
     [ "$separate_home" = true ] && hm="${disk}${pfx}${n}" && n=$((n+1))
     root="${disk}${pfx}${n}"
-    echo "DEBUG top: n=$n sw=$sw root=$root" >&2
 
     # Wait for device node (udev may be slow in live ISO)
     if [ ! -b "$disk" ]; then
@@ -203,8 +202,8 @@ partition_and_mount() {
     done
 
     # 2) Deactivate any swap
-    for sw in /dev/${disk_base}[0-9]*; do
-        [ -b "$sw" ] && swapoff "$sw" 2>/dev/null || true
+    for swap_dev in /dev/${disk_base}[0-9]*; do
+        [ -b "$swap_dev" ] && swapoff "$swap_dev" 2>/dev/null || true
     done
 
     # 3) Aggressively release any kernel holds on partition 3
@@ -319,7 +318,6 @@ partition_and_mount() {
 
     # Форматирование
     info "mkfs.fat $efi..."
-    info "sw=$sw root=$root hm=$hm"
     mkfs.fat -F32 "$efi"
     [ -n "$sw" ] && { mkswap "$sw"; swapon "$sw"; }
     [ -n "$hm" ] && { [ "$fs" = btrfs ] && mkfs.btrfs -f "$hm" || mkfs.ext4 -F "$hm"; }
