@@ -33,6 +33,10 @@ VOID_INSTALLER="${CONFIG_REPO}"
 #===============================================================================
 install_packages() {
     info "Установка пакетов..."
+
+    # Снимаем лок если остался с прошлого запуска
+    sudo rm -f /var/db/xbps/.xbps-pkgdb-0.plist.lock 2>/dev/null || true
+
     sudo xbps-install -S 2>/dev/null || true
 
     local pkgdir="${VOID_INSTALLER}/packages"
