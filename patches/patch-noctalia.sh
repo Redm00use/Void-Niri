@@ -38,22 +38,9 @@ find_noctalia() {
         fi
     done
 
-    # Авто-установка noctalia-shell
-    warn "Noctalia-shell не найдена. Устанавливаю из GitHub..."
-    local noctalia_dest="$HOME/.local/share/noctalia-shell"
-    mkdir -p "$HOME/.local/share"
-    if command -v git &>/dev/null; then
-        rm -rf "$noctalia_dest" 2>/dev/null || true
-        git clone --depth=1 https://github.com/noctalia-community/noctalia-shell.git "$noctalia_dest" 2>/dev/null || {
-            warn "Не удалось клонировать noctalia-shell из git. Пропускаем патчи."
-            return 1
-        }
-        if [ -f "$noctalia_dest/Modules/Bar/Bar.qml" ]; then
-            echo "$noctalia_dest"
-            return
-        fi
-    fi
+    # Noctalia не установлена — просто пропускаем патчи
     warn "Noctalia-shell не установлена. Пропускаем патчи."
+    warn "Для установки: sudo xbps-install noctalia"
     return 1
 }
 
