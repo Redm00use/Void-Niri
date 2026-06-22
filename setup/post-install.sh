@@ -167,6 +167,25 @@ setup_themes() {
 #===============================================================================
 setup_niri() {
     info "Настройка Niri..."
+
+    # Если niri-session отсутствует — создаём враппер
+    if ! command -v niri-session &>/dev/null && command -v niri &>/dev/null; then
+        info "Создаю niri-session wrapper..."
+        sudo tee /usr/local/bin/niri-session >/dev/null <<'WRAPPER'
+#!/bin/sh
+# Niri session wrapper for Void Linux
+export XDG_SESSION_TYPE=wayland
+export QT_QPA_PLATFORM="wayland;xcb"
+export MOZ_ENABLE_WAYLAND=1
+export GDK_BACKEND=wayland
+# Source profile if exists
+[ -f "$HOME/.profile" ] && . "$HOME/.profile"
+exec niri "$@"
+WRAPPER
+        sudo chmod +x /usr/local/bin/niri-session
+        info "niri-session создан."
+    fi
+
     mkdir -p ~/.config/niri
     if [ -f "${VOID_INSTALLER}/configs/niri/config.kdl" ]; then
         cp "${VOID_INSTALLER}/configs/niri/config.kdl" ~/.config/niri/config.kdl
@@ -358,9 +377,14 @@ main() {
         local current_tty
         current_tty=$(tty 2>/dev/null || echo "")
         if [ "$current_tty" = "/dev/tty1" ]; then
-            echo -e "${GREEN}  Запускаю niri-session...${NC}"
+            echo -e "${GREEN}  Запускаю niri...${NC}"
             sleep 2
-            exec dbus-run-session niri-session
+            # Пробуем niri-session, иначе niri напрямую
+            if command -v niri-session &>/dev/null; then
+                exec dbus-run-session niri-session
+            else
+                exec dbus-run-session niri
+            fi
         fi
     else
         warn "Niri не установлен. Запусти скрипт ещё раз после: sudo xbps-install niri"
