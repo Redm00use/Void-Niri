@@ -35,41 +35,61 @@ if [ $# -lt 1 ]; then
 fi
 
 DISK="$1"
-ROOT_PART="${DISK}3" # третья партиция — root (если layout стандартный)
-EFI_PART="${DISK}1"  # первая — EFI
+ROOT_PART="${DISK}3"
+EFI_PART="${DISK}1"
 
-# Пытаемся найти root по метке или типу ФС
-# Сначала пробуем третий раздел, если он не существует или не подходит — ищем вручную
+# --- Автопоиск root-раздела ---
 if [ ! -b "$ROOT_PART" ]; then
     warn "$ROOT_PART not found. Scanning for root partition..."
-    ROOT_PART=$(blkid -t TYPE="btrfs" -o device 2>/dev/null | head -1 || true)
+    # Сначала btrfs (по приоритету), потом ext4
+    for fstype in btrfs ext4; do
+        ROOT_PART=$(blkid -t TYPE="$fstype" -o device 2>/dev/null | head -1 || true)
+        [ -n "$ROOT_PART" ] && break
+    done
     if [ -z "$ROOT_PART" ]; then
-        ROOT_PART=$(blkid -t TYPE="ext4" -o device 2>/dev/null | head -1 || true)
-    fi
-    if [ -z "$ROOT_PART" ]; then
-        error "Cannot find root partition. Available partitions:"
+        error "Cannot find root partition (btrfs or ext4). Available:"
         lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT
         exit 1
     fi
     info "Found root: $ROOT_PART"
 fi
 
+# --- Автопоиск EFI-раздела ---
 if [ ! -b "$EFI_PART" ]; then
     warn "$EFI_PART not found. Scanning for EFI partition..."
     EFI_PART=$(blkid -t TYPE="vfat" -o device 2>/dev/null | head -1 || true)
     if [ -z "$EFI_PART" ]; then
-        error "Cannot find EFI partition (vfat). Available partitions:"
+        error "Cannot find EFI partition (vfat). Available:"
         lsblk -o NAME,SIZE,TYPE,FSTYPE
         exit 1
     fi
     info "Found EFI: $EFI_PART"
 fi
 
+# --- Определяем ФС и subvol для btrfs ---
+ROOT_FS=$(blkid -s TYPE -o value "$ROOT_PART" 2>/dev/null || echo "ext4")
+MOUNT_OPTS=""
+if [ "$ROOT_FS" = "btrfs" ]; then
+    # Пробуем subvol=@ (стандартный для Void-Niri), иначе @rootfs или плоский
+    for sv in @ @rootfs .; do
+        if btrfs subvolume show "$ROOT_PART" 2>/dev/null | grep -q "Name: ${sv#.}$([ "$sv" = "." ] && echo "" || true)"; then
+            true # subvol exists
+        fi
+        # Просто пробуем смонтировать — если не сработает, идём дальше
+        MOUNT_OPTS="-o subvol=$sv"
+        break
+    done
+    # Если не смогли определить — используем @ по умолчанию
+    [ -z "$MOUNT_OPTS" ] && MOUNT_OPTS="-o subvol=@"
+    info "Btrfs detected. Mount options: $MOUNT_OPTS"
+fi
+
 echo ""
 echo -e "${BLUE}=== План ===${NC}"
-echo "  Root:  $ROOT_PART"
-echo "  EFI:   $EFI_PART"
-echo "  Disk:  $DISK"
+echo "  Root:        $ROOT_PART  ($ROOT_FS)"
+echo "  EFI:         $EFI_PART"
+echo "  Disk:        $DISK"
+echo "  Mount opts:  ${MOUNT_OPTS:-none}"
 echo ""
 
 read -r -p "Продолжить? [y/N]: "
@@ -78,28 +98,64 @@ read -r -p "Продолжить? [y/N]: "
     exit 0
 }
 
-# Монтируем
-info "Mounting $ROOT_PART → /mnt..."
-mount "$ROOT_PART" /mnt
+# --- Монтируем root ---
+info "Mounting $ROOT_PART → /mnt... (${MOUNT_OPTS:-без опций})"
+# shellcheck disable=SC2086
+mount $MOUNT_OPTS "$ROOT_PART" /mnt
 
+# --- Проверка: есть ли /mnt/sys ? ---
+if [ ! -d /mnt/sys ]; then
+    # Если btrfs и /mnt/sys нет — возможно не тот subvol
+    if [ "$ROOT_FS" = "btrfs" ]; then
+        warn "/mnt/sys does not exist — trying different btrfs subvolumes..."
+        umount /mnt 2>/dev/null || true
+        for sv in @ @rootfs; do
+            mount -o "subvol=$sv" "$ROOT_PART" /mnt 2>/dev/null || continue
+            if [ -d /mnt/sys ]; then
+                info "Correct subvol found: $sv"
+                MOUNT_OPTS="-o subvol=$sv"
+                break
+            fi
+            umount /mnt 2>/dev/null || true
+        done
+        # Если всё ещё нет /mnt/sys — фатально
+        if [ ! -d /mnt/sys ]; then
+            error "Cannot find correct btrfs subvolume. /mnt/sys does not exist."
+            error "Contents of /mnt:"
+            ls -la /mnt 2>/dev/null || true
+            exit 1
+        fi
+    else
+        # Если ext4 — что-то серьёзное
+        error "/mnt/sys does not exist. Root partition $ROOT_PART may not be mounted correctly."
+        exit 1
+    fi
+fi
+
+# --- Монтируем EFI ---
 info "Mounting $EFI_PART → /mnt/boot..."
 mkdir -p /mnt/boot
 mount "$EFI_PART" /mnt/boot
 
+# --- Bind-mount /sys, /dev, /proc (создаём точки если их нет) ---
 info "Bind-mounting /sys, /dev, /proc..."
-mount --rbind /sys /mnt/sys
-mount --rbind /dev /mnt/dev
-mount --rbind /proc /mnt/proc
-mount --rbind /run /mnt/run 2>/dev/null || true
+mkdir -p /mnt/sys /mnt/dev /mnt/proc /mnt/run
+mount --rbind /sys /mnt/sys || warn "mount --rbind /sys failed"
+mount --rbind /dev /mnt/dev || warn "mount --rbind /dev failed"
+mount --rbind /proc /mnt/proc || warn "mount --rbind /proc failed"
+mount --rbind /run /mnt/run || warn "mount --rbind /run failed"
 
-# Chroot установка GRUB
+# --- Chroot: переустановка GRUB ---
 info "Installing GRUB..."
-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Void Linux" --removable
+chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Void Linux" --removable || {
+    warn "First attempt failed, retrying with --no-nvram..."
+    chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Void Linux" --removable --no-nvram
+}
 
 info "Reconfiguring kernel..."
 chroot /mnt xbps-reconfigure -f linux
 
-# Проверка
+# --- Проверка ---
 echo ""
 info "Проверка:"
 if [ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]; then
@@ -107,13 +163,13 @@ if [ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]; then
 else
     echo -e "${RED}  ❌ /EFI/BOOT/BOOTX64.EFI — NOT FOUND${NC}"
 fi
-if [ -f /mnt/boot/EFI/Void\ Linux/grubx64.efi ]; then
+if [ -f "/mnt/boot/EFI/Void Linux/grubx64.efi" ]; then
     echo -e "${GREEN}  ✅ /EFI/Void Linux/grubx64.efi — OK${NC}"
 else
     echo -e "${RED}  ❌ /EFI/Void Linux/grubx64.efi — NOT FOUND${NC}"
 fi
 
-# Размонтируем
+# --- Размонтируем ---
 info "Unmounting..."
 umount -R /mnt 2>/dev/null || true
 
