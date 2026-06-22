@@ -28,6 +28,48 @@ VOID_INSTALLER="${CONFIG_REPO}"
 #===============================================================================
 # 1. XDG User Dirs
 #===============================================================================
+#===============================================================================
+# 0. Установка пакетов из .list файлов (на случай если install.sh не сработал)
+#===============================================================================
+install_packages() {
+    info "Установка пакетов..."
+    sudo xbps-install -S 2>/dev/null || true
+
+    local pkgdir="${VOID_INSTALLER}/packages"
+    [ -d "$pkgdir" ] || {
+        warn "Папка packages не найдена, пропускаем."
+        return
+    }
+
+    # Список .list файлов с приоритетом
+    local lists=(
+        "$pkgdir/base.list"
+        "$pkgdir/desktop.list"
+        "$pkgdir/gpu-amd.list"
+        "$pkgdir/gpu-nvidia.list"
+        "$pkgdir/gpu-intel.list"
+        "$pkgdir/gpu-vm.list"
+    )
+
+    for listfile in "${lists[@]}"; do
+        [ -f "$listfile" ] || continue
+        local pkgs=""
+        while IFS= read -r line; do
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+            [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+            # Пропускаем пакеты с пометкой NOT IN VOID REPOS
+            echo "$line" | grep -iq "NOT IN" && continue
+            pkgs="$pkgs $line"
+        done <"$listfile"
+        [ -z "$pkgs" ] && continue
+        local title
+        title=$(basename "$listfile")
+        info "Установка из $title..."
+        sudo xbps-install -y $pkgs 2>&1 | tail -3 || warn "Часть пакетов из $title не установилась"
+    done
+    info "Пакеты установлены."
+}
+
 setup_xdg_dirs() {
     info "Создание XDG директорий..."
     xdg-user-dirs-update 2>/dev/null || true
@@ -206,7 +248,7 @@ setup_system_configs() {
     [ -f "${VOID_INSTALLER}/configs/system/tlp.conf" ] && sudo cp "${VOID_INSTALLER}/configs/system/tlp.conf" /etc/tlp.conf && info "  tlp.conf"
     [ -f "${VOID_INSTALLER}/configs/system/gamemode.ini" ] && sudo cp "${VOID_INSTALLER}/configs/system/gamemode.ini" /etc/gamemode.ini && info "  gamemode.ini"
     [ -f "${VOID_INSTALLER}/configs/system/nbfc.json" ] && sudo mkdir -p /etc/nbfc && sudo cp "${VOID_INSTALLER}/configs/system/nbfc.json" /etc/nbfc/nbfc.json && info "  nbfc.json"
-    [ -f "${VOID_INSTALLER}/configs/system/60-scheduler.rules" ] && sudo cp "${VOID_INSTALLER}/configs/system/60-scheduler.rules" /etc/udev/rules.d/60-scheduler.rules && sudo udevadm control --reload && info "  udev rules"
+    [ -f "${VOID_INSTALLER}/configs/system/60-scheduler.rules" ] && sudo mkdir -p /etc/udev/rules.d && sudo cp "${VOID_INSTALLER}/configs/system/60-scheduler.rules" /etc/udev/rules.d/60-scheduler.rules && sudo udevadm control --reload && info "  udev rules"
     [ -f "${VOID_INSTALLER}/configs/system/mimeapps.list" ] && cp "${VOID_INSTALLER}/configs/system/mimeapps.list" ~/.config/mimeapps.list && info "  mimeapps.list"
 }
 
@@ -225,6 +267,7 @@ main() {
     fi
 
     setup_xdg_dirs
+    install_packages
     setup_ohmyzsh
     setup_flatpak
     copy_configs
