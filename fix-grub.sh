@@ -169,8 +169,10 @@ if [ -n "$BOOT_DEV" ]; then
     BOOT_DISK="/dev/$(lsblk -n -o PKNAME "$BOOT_DEV" 2>/dev/null || echo "")"
     BOOT_PART_NUM=$(lsblk -n -o MAJ:MIN "$BOOT_DEV" 2>/dev/null | cut -d: -f2 || echo "1")
     if [ -n "$BOOT_DISK" ] && [ -b "$BOOT_DISK" ]; then
-        # Удаляем старые записи Void Linux
-        chroot /mnt efibootmgr 2>/dev/null | grep -i "void" | sed -n 's/Boot\([0-9A-F]*\).*/\1/p' | while read -r bn; do
+        # Удаляем старые записи Void Linux (игнорируем ошибки grep если нет записей)
+        local old_boots
+        old_boots=$(chroot /mnt efibootmgr 2>/dev/null | grep -i "void" | sed -n 's/Boot\([0-9A-F]*\).*/\1/p' || true)
+        for bn in $old_boots; do
             chroot /mnt efibootmgr -b "$bn" -B 2>/dev/null || true
         done
         # Создаём новую
@@ -181,6 +183,11 @@ if [ -n "$BOOT_DEV" ]; then
             warn "efibootmgr не смог создать запись — не страшно, BOOTX64.EFI fallback сработает"
     fi
 fi
+
+# Показываем что получилось в NVRAM
+echo ""
+info "Текущие записи UEFI (efibootmgr):"
+chroot /mnt efibootmgr 2>/dev/null | head -15 || warn "efibootmgr недоступен"
 
 # --- Проверка ---
 echo ""
