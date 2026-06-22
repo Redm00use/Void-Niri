@@ -65,7 +65,7 @@ install_packages() {
         local title
         title=$(basename "$listfile")
         info "Установка из $title..."
-        sudo xbps-install -y $pkgs 2>&1 | tail -3 || warn "Часть пакетов из $title не установилась"
+        sudo xbps-install -y $pkgs 2>&1 || warn "Часть пакетов из $title не установилась"
     done
     info "Пакеты установлены."
 }
