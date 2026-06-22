@@ -155,6 +155,10 @@ chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-
 info "Reconfiguring kernel..."
 chroot /mnt xbps-reconfigure -f linux
 
+# --- Генерируем GRUB config (самая частая причина — grub.cfg пуст или отсутствует) ---
+info "Generating grub.cfg..."
+chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg || warn "grub-mkconfig failed (может не быть /dev в chroot)"
+
 # --- Проверка ---
 echo ""
 info "Проверка:"
@@ -167,6 +171,11 @@ if [ -f "/mnt/boot/EFI/Void Linux/grubx64.efi" ]; then
     echo -e "${GREEN}  ✅ /EFI/Void Linux/grubx64.efi — OK${NC}"
 else
     echo -e "${RED}  ❌ /EFI/Void Linux/grubx64.efi — NOT FOUND${NC}"
+fi
+if [ -f /mnt/boot/grub/grub.cfg ]; then
+    echo -e "${GREEN}  ✅ /boot/grub/grub.cfg — OK ($(wc -l </mnt/boot/grub/grub.cfg) строк)${NC}"
+else
+    echo -e "${RED}  ❌ /boot/grub/grub.cfg — ОТСУТСТВУЕТ!${NC}"
 fi
 
 # --- Размонтируем ---
