@@ -34,8 +34,13 @@ VOID_INSTALLER="${CONFIG_REPO}"
 install_packages() {
     info "Установка пакетов..."
 
-    # Снимаем лок если остался с прошлого запуска
-    sudo rm -f /var/db/xbps/.xbps-pkgdb-0.plist.lock 2>/dev/null || true
+    # Снимаем ВСЕ локи если остались с прошлого запуска
+    sudo rm -f /var/db/xbps/.xbps-pkgdb-0.plist.lock \
+        /var/db/xbps/.lock \
+        /var/cache/xbps/.xbps-pkgdb-0.plist.lock \
+        /var/cache/xbps/.lock 2>/dev/null || true
+    # Убиваем зависшие xbps процессы
+    sudo pkill -9 xbps-install 2>/dev/null || true
 
     sudo xbps-install -S 2>/dev/null || true
 
