@@ -252,6 +252,32 @@ setup_system_configs() {
     [ -f "${VOID_INSTALLER}/configs/system/mimeapps.list" ] && cp "${VOID_INSTALLER}/configs/system/mimeapps.list" ~/.config/mimeapps.list && info "  mimeapps.list"
 }
 
+#===============================================================================
+# 10. Автозапуск niri при логине в tty1
+#===============================================================================
+setup_autolaunch() {
+    info "Настройка автозапуска niri..."
+
+    if command -v greetd &>/dev/null; then
+        info "greetd уже настроен — авто-запуск через него."
+        return
+    fi
+
+    # Через .zprofile — запуск niri при логине на tty1
+    if [ -f ~/.zprofile ]; then
+        grep -q "niri-session" ~/.zprofile 2>/dev/null && return
+    fi
+
+    cat >>~/.zprofile <<'ZPROFILE'
+# Автозапуск niri при логине на tty1
+if [ "$(tty)" = "/dev/tty1" ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    exec dbus-run-session niri-session
+fi
+ZPROFILE
+    info "Добавлен автозапуск niri в ~/.zprofile (tty1)"
+}
+
+#===============================================================================
 # Главная функция
 #===============================================================================
 main() {
@@ -276,19 +302,33 @@ main() {
     setup_greetd
     patch_noctalia
     setup_system_configs
+    setup_autolaunch
 
     echo
     info "==========================================="
     info "  Пост-установка завершена!"
     info "==========================================="
     echo
-    info "Далее:"
-    info "  1. Перезайди в систему или перезагрузись: reboot"
-    info "  2. Niri запустится автоматически через greetd"
-    info "  3. Если нет greetd — запусти niri-session вручную"
-    info "  4. Установи Catppuccin тему для GTK/Qt"
-    info "  5. Настрой ZSH: chsh -s /bin/zsh"
-    echo
+
+    # Авто-запуск niri если пакет установлен и мы на tty
+    if command -v niri &>/dev/null; then
+        info "Niri установлен. Запускаю..."
+        echo
+        echo -e "${YELLOW}  Входи в систему как ${USER} на tty1 (Ctrl+Alt+F1)${NC}"
+        echo -e "${YELLOW}  Niri запустится автоматически!${NC}"
+        echo
+
+        # Если скрипт запущен из tty — предлагаем запустить прямо сейчас
+        local current_tty
+        current_tty=$(tty 2>/dev/null || echo "")
+        if [ "$current_tty" = "/dev/tty1" ]; then
+            echo -e "${GREEN}  Запускаю niri-session...${NC}"
+            sleep 2
+            exec dbus-run-session niri-session
+        fi
+    else
+        warn "Niri не установлен. Запусти скрипт ещё раз после: sudo xbps-install niri"
+    fi
 }
 
 main "$@"
