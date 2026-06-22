@@ -2,12 +2,12 @@
 mesa
 mesa-vulkan-radeon
 mesa-vaapi
-mesa-vdpau
 vulkan-loader
 amdvlk
 libva
 libva-utils
 libvdpau
 libvdpau-va-gl
-rocm-opencl-runtime
-rocm-hip-runtime
+# mesa-vdpau — already built into mesa
+# rocm-opencl-runtime — NOT IN VOID REPOS
+# rocm-hip-runtime — NOT IN VOID REPOS

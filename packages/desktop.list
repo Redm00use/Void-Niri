@@ -75,20 +75,20 @@ thermald
 # NOT IN VOID REPOS: cloudflare-warp
 
 # Email
-mailspring
+# mailspring — NOT IN VOID REPOS (install via flatpak)
 
 # Bittorrent
 qbittorrent
 
 # Messenger
-discord
+# discord — NOT IN VOID REPOS (install via flatpak)
 telegram-desktop
 
 # Flatpak additions
 flatpak
 
 # Note-taking
-obsidian
+# obsidian — NOT IN VOID REPOS (install via flatpak)
 
 # Fun
 cowsay

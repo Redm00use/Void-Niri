@@ -75,7 +75,7 @@ direnv
 flatpak
 # misc
 usbutils
-imagemagick
+ImageMagick
 gnome-disk-utility
 gparted
 xdg-user-dirs
