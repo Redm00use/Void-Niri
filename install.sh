@@ -35,31 +35,52 @@ cleanup() {
 }
 trap cleanup EXIT
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; CYAN='\033[0;36m'; NC='\033[0m'
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-info()  { echo -e "${GREEN}[+]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
+info() { echo -e "${GREEN}[+]${NC} $*"; }
+warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; }
 
 print_header() {
-    echo; echo -e "${BLUE}===${NC} $* ${BLUE}===${NC}"; echo
+    echo
+    echo -e "${BLUE}===${NC} $* ${BLUE}===${NC}"
+    echo
 }
 
-prompt()       { read -r -p "$1 [$2]: "; echo "${REPLY:-$2}"; }
-prompt_int()   { read -r -p "$1 [$2]: "; echo "${REPLY:-$2}"; }
-prompt_yn()    { read -r -p "$1 [y/N]: "; [[ "${REPLY:-n}" =~ ^[yYдД] ]]; }
+prompt() {
+    read -r -p "$1 [$2]: "
+    echo "${REPLY:-$2}"
+}
+prompt_int() {
+    read -r -p "$1 [$2]: "
+    echo "${REPLY:-$2}"
+}
+prompt_yn() {
+    read -r -p "$1 [y/N]: "
+    [[ "${REPLY:-n}" =~ ^[yYдД] ]]
+}
 prompt_erase() {
     echo -e "${RED}ВНИМАНИЕ: диск $1 будет ПОЛНОСТЬЮ СТЁРТ!${NC}"
     read -r -p "Напиши ERASE для подтверждения: "
-    [[ "$REPLY" == "ERASE" ]] || { error "Отмена."; exit 1; }
+    [[ "$REPLY" == "ERASE" ]] || {
+        error "Отмена."
+        exit 1
+    }
 }
 
 #===============================================================================
 # Live-окружение: проверка и установка инструментов
 #===============================================================================
 require_root() {
-    [ "$(id -u)" -eq 0 ] || { error "Запусти от root: sudo bash install.sh --mode live"; exit 1; }
+    [ "$(id -u)" -eq 0 ] || {
+        error "Запусти от root: sudo bash install.sh --mode live"
+        exit 1
+    }
 }
 
 prepare_live() {
@@ -103,7 +124,10 @@ prepare_live() {
         /usr/share/kbd/consolefonts/cyr-sun16.psf.gz \
         /usr/share/kbd/consolefonts/Cyr_a8x16.psf.gz; do
         if [ -f "$f" ]; then
-            setfont "$f" 2>/dev/null && { font_set=true; break; }
+            setfont "$f" 2>/dev/null && {
+                font_set=true
+                break
+            }
         fi
     done
 
@@ -113,7 +137,10 @@ prepare_live() {
             /usr/share/kbd/consolefonts/ter-cyr16b.psf.gz \
             /usr/share/kbd/consolefonts/ter-cyr14b.psf.gz; do
             if [ -f "$f" ]; then
-                setfont "$f" 2>/dev/null && { font_set=true; break; }
+                setfont "$f" 2>/dev/null && {
+                    font_set=true
+                    break
+                }
             fi
         done
     fi
@@ -131,12 +158,24 @@ prepare_live() {
 choose_gpu() {
     echo "  1) AMD    2) NVIDIA    3) Intel    4) VM"
     read -r -p "Видеокарта [1]: "
-    case "${REPLY:-1}" in 1|amd) echo "amd";; 2|nvidia) echo "nvidia";; 3|intel) echo "intel";; 4|vm) echo "vm";; *) echo "amd";; esac
+    case "${REPLY:-1}" in 1 | amd) echo "amd" ;; 2 | nvidia) echo "nvidia" ;; 3 | intel) echo "intel" ;; 4 | vm) echo "vm" ;; *) echo "amd" ;; esac
 }
-choose_role()    { read -r -p "Роль (desktop/server) [desktop]: "; echo "${REPLY:-desktop}"; }
-choose_fs()      { read -r -p "ФС root (btrfs/ext4) [btrfs]: "; echo "${REPLY:-btrfs}"; }
-choose_tz()      { read -r -p "Часовой пояс [Europe/Kyiv]: "; echo "${REPLY:-Europe/Kyiv}"; }
-choose_locale()  { read -r -p "Локаль [ru_RU.UTF-8]: "; echo "${REPLY:-ru_RU.UTF-8}"; }
+choose_role() {
+    read -r -p "Роль (desktop/server) [desktop]: "
+    echo "${REPLY:-desktop}"
+}
+choose_fs() {
+    read -r -p "ФС root (btrfs/ext4) [btrfs]: "
+    echo "${REPLY:-btrfs}"
+}
+choose_tz() {
+    read -r -p "Часовой пояс [Europe/Kyiv]: "
+    echo "${REPLY:-Europe/Kyiv}"
+}
+choose_locale() {
+    read -r -p "Локаль [ru_RU.UTF-8]: "
+    echo "${REPLY:-ru_RU.UTF-8}"
+}
 
 select_disk() {
     # All UI output goes to stderr so stdout only contains the chosen disk path
@@ -149,8 +188,8 @@ select_disk() {
     } >&2
 
     local candidates
-    candidates=$(lsblk -d -n -e 7,11 -o NAME,TYPE,SIZE 2>/dev/null \
-        | awk '$2=="disk" {print $1}' | tr '\n' ' ' | sed 's/ *$//')
+    candidates=$(lsblk -d -n -e 7,11 -o NAME,TYPE,SIZE 2>/dev/null |
+        awk '$2=="disk" {print $1}' | tr '\n' ' ' | sed 's/ *$//')
 
     local count
     count=$(echo "$candidates" | wc -w)
@@ -169,7 +208,10 @@ select_disk() {
 
     while :; do
         read -r -p "Disk (e.g. vda, sda, nvme0n1): "
-        [ -b "/dev/$REPLY" ] && { echo "/dev/$REPLY"; return; }
+        [ -b "/dev/$REPLY" ] && {
+            echo "/dev/$REPLY"
+            return
+        }
         error "Not found: /dev/$REPLY" >&2
     done
 }
@@ -187,8 +229,8 @@ partition_and_mount() {
     local efi="${disk}${pfx}1"
     local n=2 sw="" hm="" root=""
 
-    [ "$swap_gib" -gt 0 ] && sw="${disk}${pfx}${n}" && n=$((n+1))
-    [ "$separate_home" = true ] && hm="${disk}${pfx}${n}" && n=$((n+1))
+    [ "$swap_gib" -gt 0 ] && sw="${disk}${pfx}${n}" && n=$((n + 1))
+    [ "$separate_home" = true ] && hm="${disk}${pfx}${n}" && n=$((n + 1))
     root="${disk}${pfx}${n}"
 
     # Wait for device node (udev may be slow in live ISO)
@@ -251,7 +293,10 @@ partition_and_mount() {
     # Forget all btrfs devices (scan refs)
     btrfs device scan --forget 2>/dev/null || true
     # Reload btrfs module to force-release any stale device refs
-    (modprobe -r btrfs 2>/dev/null; modprobe btrfs 2>/dev/null) || true
+    (
+        modprobe -r btrfs 2>/dev/null
+        modprobe btrfs 2>/dev/null
+    ) || true
     dmsetup remove_all 2>/dev/null || true
 
     # 4) Wipe everything (signatures + GPT headers)
@@ -270,22 +315,22 @@ partition_and_mount() {
     #    partitions better than parted)
     if command -v sgdisk &>/dev/null; then
         warn "Creating partitions via sgdisk..."
-        sgdisk -o "$disk" || true                                    # fresh GPT
+        sgdisk -o "$disk" || true # fresh GPT
         # Use relative sizes to avoid sector boundary overlaps with sgdisk
-        sgdisk -n 1:1MiB:+512MiB -t 1:ef00 "$disk" || true            # ESP (512MiB)
+        sgdisk -n 1:1MiB:+512MiB -t 1:ef00 "$disk" || true # ESP (512MiB)
 
         local n=2 cur=513
         if [ -n "$sw" ]; then
             sgdisk -n "$n:${cur}MiB:+${swap_gib}GiB" -t "$n":8200 "$disk" || true
-            n=$((n+1))
-            cur=$((cur+swap_gib*1024))
+            n=$((n + 1))
+            cur=$((cur + swap_gib * 1024))
         fi
         if [ -n "$hm" ]; then
             sgdisk -n "$n:${cur}MiB:+${home_gib}GiB" "$disk" || true
-            n=$((n+1))
-            cur=$((cur+home_gib*1024))
+            n=$((n + 1))
+            cur=$((cur + home_gib * 1024))
         fi
-        sgdisk -n "$n:${cur}MiB:0" -t "$n":8300 "$disk" || true      # root to end
+        sgdisk -n "$n:${cur}MiB:0" -t "$n":8300 "$disk" || true # root to end
         udevadm settle 2>/dev/null || true
 
         # Try to make partition devices appear
@@ -313,12 +358,12 @@ partition_and_mount() {
 
         local cur=513
         if [ -n "$sw" ]; then
-            parted -s "$disk" mkpart primary linux-swap "${cur}MiB" "$((cur+swap_gib*1024))MiB"
-            cur=$((cur+swap_gib*1024))
+            parted -s "$disk" mkpart primary linux-swap "${cur}MiB" "$((cur + swap_gib * 1024))MiB"
+            cur=$((cur + swap_gib * 1024))
         fi
         if [ -n "$hm" ]; then
-            parted -s "$disk" mkpart primary "$fs" "${cur}MiB" "$((cur+home_gib*1024))MiB"
-            cur=$((cur+home_gib*1024))
+            parted -s "$disk" mkpart primary "$fs" "${cur}MiB" "$((cur + home_gib * 1024))MiB"
+            cur=$((cur + home_gib * 1024))
         fi
         local root_fs="$fs"
         [ "$luks" = true ] && root_fs="ext4"
@@ -349,22 +394,36 @@ partition_and_mount() {
 
     # Форматирование
     info "mkfs.fat $efi..."
-    [ -b "$efi" ] || { error "$efi is not a block device"; exit 1; }
+    [ -b "$efi" ] || {
+        error "$efi is not a block device"
+        exit 1
+    }
     mkfs.fat -F32 "$efi"
-    [ -n "$sw" ] && { [ -b "$sw" ] || { error "$sw is not a block device"; exit 1; }; mkswap "$sw"; swapon "$sw"; }
+    [ -n "$sw" ] && {
+        [ -b "$sw" ] || {
+            error "$sw is not a block device"
+            exit 1
+        }
+        mkswap "$sw"
+        swapon "$sw"
+    }
     [ -n "$hm" ] && { [ "$fs" = btrfs ] && mkfs.btrfs -f "$hm" || mkfs.ext4 -F "$hm"; }
 
     local rootdev="$root"
     if [ "$luks" = true ]; then
         local pass
-        read -r -s -p "LUKS пароль: " pass; echo
+        read -r -s -p "LUKS пароль: " pass
+        echo
         echo -n "$pass" | cryptsetup luksFormat --batch-mode "$root" -
         echo -n "$pass" | cryptsetup open "$root" cryptroot -
         STATE_LUKS_OPENED=true
         rootdev="/dev/mapper/cryptroot"
     fi
 
-    [ -b "$rootdev" ] || { error "$rootdev is not a block device"; exit 1; }
+    [ -b "$rootdev" ] || {
+        error "$rootdev is not a block device"
+        exit 1
+    }
     if [ "$fs" = btrfs ]; then
         mkfs.btrfs -f "$rootdev"
         mount "$rootdev" /mnt
@@ -382,7 +441,10 @@ partition_and_mount() {
     mkdir -p /mnt/boot && mount "$efi" /mnt/boot
     if [ -n "$hm" ]; then
         mkdir -p /mnt/home && mount "$hm" /mnt/home
-    [ -b "$rootdev" ] || { error "$rootdev is not a block device"; exit 1; }
+        [ -b "$rootdev" ] || {
+            error "$rootdev is not a block device"
+            exit 1
+        }
     elif [ "$fs" = btrfs ]; then
         mkdir -p /mnt/home && mount -o subvol=@home,compress=zstd,noatime "$rootdev" /mnt/home
     fi
@@ -398,7 +460,7 @@ install_void_base() {
     local mirror="${1:-https://repo-default.voidlinux.org/current}"
 
     XBPS_ARCH=x86_64 xbps-install -Sy -r /mnt -R "$mirror" \
-        base-system grub-x86_64-efi \
+        base-system grub-x86_64-efi efibootmgr \
         bash curl wget git \
         NetworkManager bluez \
         pipewire wireplumber alsa-pipewire \
@@ -431,7 +493,7 @@ run_chroot_setup() {
     cp -r "$SCRIPT_DIR/services" /mnt/tmp/services 2>/dev/null || true
 
     # chroot-скрипт
-    cat > /mnt/tmp/setup.sh << 'INNER'
+    cat >/mnt/tmp/setup.sh <<'INNER'
 #!/bin/bash
 set -eu
 H="$1" TZ="$2" L="$3" U="$4" G="$5" R="$6" FS="$7"
@@ -477,10 +539,6 @@ useradd -m -G wheel,network,audio,video,input,bluetooth,kvm,libvirt,plugdev \
     -s /bin/zsh "$U"
 echo "${U}:1408" | chpasswd
 echo "root:1408" | chpasswd
-
-# GRUB
-grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Void Linux"
-xbps-reconfigure -f linux
 
 # Службы runit
 for s in dbus elogind polkitd NetworkManager bluetoothd acpid chronyd cupsd; do
@@ -555,6 +613,75 @@ INNER
 
     chmod +x /mnt/tmp/setup.sh
     chroot /mnt /tmp/setup.sh "$hostname" "$tz" "$locale" "$user" "$gpu" "$role" "$fs"
+
+    # GRUB: install bootloader from outside chroot (needs /proc, /sys, /dev mounted)
+    # Проверяем, что /boot это EFI раздел (должен быть vfat)
+    local boot_fs
+    boot_fs=$(blkid -s TYPE -o value /mnt/boot 2>/dev/null || true)
+    if [ "$boot_fs" != "vfat" ]; then
+        warn "/boot is not vfat (got: ${boot_fs:-none}). Remounting EFI partition..."
+        # Try to find EFI partition and remount
+        local efi_part
+        efi_part=$(blkid -t PARTLABEL="EFI system partition" -o device 2>/dev/null | head -1 || true)
+        if [ -n "$efi_part" ] && [ -b "$efi_part" ]; then
+            umount /mnt/boot 2>/dev/null || true
+            mount "$efi_part" /mnt/boot
+            info "EFI partition $efi_part remounted to /mnt/boot"
+        fi
+    fi
+
+    info "Installing GRUB bootloader..."
+
+    # Install GRUB EFI
+    if ! chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Void Linux" --removable; then
+        error "GRUB EFI install failed. Trying alternative method..."
+        # Fallback: install only to ESP without NVRAM registration
+        chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Void Linux" --removable --no-nvram || {
+            error "CRITICAL: GRUB installation failed completely!"
+            error "Your system may not boot. Debug info:"
+            ls -la /mnt/boot/ 2>/dev/null || true
+            ls -la /mnt/boot/EFI/ 2>/dev/null || true
+        }
+    fi
+
+    # Verify EFI binary exists
+    if [ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ]; then
+        info "Fallback EFI bootloader found: /EFI/BOOT/BOOTX64.EFI"
+    elif [ -f /mnt/boot/EFI/Void\ Linux/grubx64.efi ]; then
+        info "GRUB EFI found in /EFI/Void Linux/"
+        # Copy to fallback location for firmware that doesn't read NVRAM
+        mkdir -p /mnt/boot/EFI/BOOT
+        cp /mnt/boot/EFI/Void\ Linux/grubx64.efi /mnt/boot/EFI/BOOT/BOOTX64.EFI
+        info "Copied grubx64.efi to fallback /EFI/BOOT/BOOTX64.EFI"
+    else
+        warn "No EFI bootloader binary found on ESP!"
+        ls -laR /mnt/boot/EFI/ 2>/dev/null || true
+    fi
+
+    # Register in NVRAM via efibootmgr (inside chroot)
+    local efi_dev
+    efi_dev=$(findmnt -n -o SOURCE /mnt/boot 2>/dev/null || true)
+    if [ -n "$efi_dev" ]; then
+        local efi_disk efi_partnum
+        efi_disk=$(lsblk -n -o PKNAME "$efi_dev" 2>/dev/null || true)
+        efi_partnum=$(cat /sys/block/${efi_disk}/${efi_dev##*/}/partition 2>/dev/null || echo "1")
+        if [ -n "$efi_disk" ]; then
+            info "Registering boot entry in NVRAM via efibootmgr..."
+            chroot /mnt efibootmgr --create --disk "/dev/$efi_disk" --part "$efi_partnum" \
+                --label "Void Linux" --loader "\\EFI\\Void Linux\\grubx64.efi" ||
+                warn "efibootmgr registration failed (may need UEFI shell fallback)"
+        fi
+    fi
+
+    chroot /mnt xbps-reconfigure -f linux
+
+    # Final verification
+    if [ -f /mnt/boot/EFI/BOOT/BOOTX64.EFI ] || [ -f /mnt/boot/EFI/Void\ Linux/grubx64.efi ]; then
+        info "GRUB installed successfully."
+    else
+        warn "GRUB installation may be incomplete — check manually after reboot."
+    fi
+
     rm -rf /mnt/tmp/setup.sh /mnt/tmp/pkgs-*.list /mnt/tmp/services
     info "Система настроена."
 }
@@ -631,7 +758,7 @@ install_configs() {
     fi
 
     # .profile
-    cat >> "$home/.profile" << 'EOF'
+    cat >>"$home/.profile" <<'EOF'
 export XDG_SESSION_TYPE=wayland
 export QT_QPA_PLATFORM="wayland;xcb"
 export XKB_DEFAULT_OPTIONS="led:scroll"
@@ -656,7 +783,7 @@ EOF
     [ -f "$SCRIPT_DIR/scripts/bluetooth-reconnect" ] && cp "$SCRIPT_DIR/scripts/bluetooth-reconnect" /mnt/usr/local/bin/bluetooth-device-reconnect && chmod +x /mnt/usr/local/bin/bluetooth-device-reconnect
     [ -f "$SCRIPT_DIR/scripts/bluetooth-watch" ] && cp "$SCRIPT_DIR/scripts/bluetooth-watch" /mnt/usr/local/bin/bluetooth-devices-watch && chmod +x /mnt/usr/local/bin/bluetooth-devices-watch
     mkdir -p /mnt/usr/share/wayland-sessions
-    cat > /mnt/usr/share/wayland-sessions/niri.desktop << 'EOF'
+    cat >/mnt/usr/share/wayland-sessions/niri.desktop <<'EOF'
 [Desktop Entry]
 Name=Niri
 Comment=Niri compositor
@@ -681,22 +808,70 @@ main() {
     # Аргументы
     while [ $# -gt 0 ]; do
         case "$1" in
-            --mode) mode="$2"; shift 2;;
-            --host) hostname="$2"; shift 2;;
-            --user) user_name="$2"; shift 2;;
-            --role) role="$2"; shift 2;;
-            --gpu)  gpu="$2"; shift 2;;
-            --timezone) tz="$2"; shift 2;;
-            --locale) locale="$2"; shift 2;;
-            --fs) fs="$2"; shift 2;;
-            --disk) disk="$2"; shift 2;;
-            --separate-home) separate_home="true"; shift;;
-            --home-gib) home_gib="$2"; shift 2;;
-            --swap-gib) swap_gib="$2"; shift 2;;
-            --luks) luks="true"; shift;;
-            --yes) yes_mode="true"; shift;;
-            --dry-run) dry_run="true"; shift;;
-            *) error "?: $1"; exit 1;;
+        --mode)
+            mode="$2"
+            shift 2
+            ;;
+        --host)
+            hostname="$2"
+            shift 2
+            ;;
+        --user)
+            user_name="$2"
+            shift 2
+            ;;
+        --role)
+            role="$2"
+            shift 2
+            ;;
+        --gpu)
+            gpu="$2"
+            shift 2
+            ;;
+        --timezone)
+            tz="$2"
+            shift 2
+            ;;
+        --locale)
+            locale="$2"
+            shift 2
+            ;;
+        --fs)
+            fs="$2"
+            shift 2
+            ;;
+        --disk)
+            disk="$2"
+            shift 2
+            ;;
+        --separate-home)
+            separate_home="true"
+            shift
+            ;;
+        --home-gib)
+            home_gib="$2"
+            shift 2
+            ;;
+        --swap-gib)
+            swap_gib="$2"
+            shift 2
+            ;;
+        --luks)
+            luks="true"
+            shift
+            ;;
+        --yes)
+            yes_mode="true"
+            shift
+            ;;
+        --dry-run)
+            dry_run="true"
+            shift
+            ;;
+        *)
+            error "?: $1"
+            exit 1
+            ;;
         esac
     done
 
@@ -704,8 +879,8 @@ main() {
 
     # --- CONFIG MODE ---
     if [ "$mode" = config ]; then
-        hostname=$(prompt       "Имя хоста" "$hostname")
-        user_name=$(prompt      "Пользователь" "$user_name")
+        hostname=$(prompt "Имя хоста" "$hostname")
+        user_name=$(prompt "Пользователь" "$user_name")
         role=$(choose_role)
         gpu=$(choose_gpu)
         tz=$(choose_tz)
@@ -719,7 +894,7 @@ main() {
         echo "  Locale:       $locale"
         $yes_mode || { prompt_yn "Подтвердить?" || exit 0; }
         mkdir -p "$SCRIPT_DIR/generated"
-        cat > "$SCRIPT_DIR/generated/$hostname.conf" << EOF
+        cat >"$SCRIPT_DIR/generated/$hostname.conf" <<EOF
 HOSTNAME="$hostname"
 USER="$user_name"
 ROLE="$role"
@@ -737,8 +912,8 @@ EOF
     prepare_live
 
     # Интерактивные вопросы
-    hostname=$(prompt       "Имя хоста" "$hostname")
-    user_name=$(prompt      "Пользователь" "$user_name")
+    hostname=$(prompt "Имя хоста" "$hostname")
+    user_name=$(prompt "Пользователь" "$user_name")
     role=$(choose_role)
     gpu=$(choose_gpu)
     tz=$(choose_tz)
@@ -759,7 +934,10 @@ EOF
     echo "  Swap GiB:    $swap_gib"
     echo "  LUKS:        $luks"
     $yes_mode || prompt_erase "$disk"
-    [ "$dry_run" = true ] && { info "Dry-run — выход."; exit 0; }
+    [ "$dry_run" = true ] && {
+        info "Dry-run — выход."
+        exit 0
+    }
 
     # === УСТАНОВКА ===
     # 1. Разметка
@@ -779,10 +957,9 @@ EOF
     info "Копирование репозитория в $repodst..."
     mkdir -p "$repodst"
     rsync -a --exclude='.git' --exclude='result' --exclude='.installer-logs' --exclude='generated' \
-        "$SCRIPT_DIR/" "$repodst/" 2>/dev/null || \
+        "$SCRIPT_DIR/" "$repodst/" 2>/dev/null ||
         cp -r "$SCRIPT_DIR"/* "$repodst/" 2>/dev/null || true
     chown -R 1000:1000 "/mnt/home/$user_name"
-
 
     # 7. Готово
     echo
@@ -794,9 +971,24 @@ EOF
     echo "  Пользователь: $user_name"
     echo "  Пароль:      1408"
     echo
-    echo "  Перезагрузка: reboot"
     echo "  После входа:  bash ~/void-niri/setup/post-install.sh"
     echo
+
+    # Unmount before reboot (trap will also do it, but explicit is safer)
+    info "Unmounting /mnt..."
+    umount -R /mnt 2>/dev/null || true
+    STATE_MOUNTED=false
+
+    # Auto-reboot with countdown
+    echo -e "${YELLOW}Система перезагрузится через 10 секунд...${NC}"
+    echo -e "${YELLOW}Нажми Ctrl+C чтобы отменить.${NC}"
+    for i in $(seq 10 -1 1); do
+        printf "\r  %2d..." "$i"
+        sleep 1
+    done
+    echo
+    echo -e "${GREEN}Перезагрузка!${NC}"
+    reboot
 }
 
 main "$@"
