@@ -162,6 +162,26 @@ chroot /mnt xbps-reconfigure -f linux
 info "Generating grub.cfg..."
 chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg || warn "grub-mkconfig failed (может не быть /dev в chroot)"
 
+# --- Регистрируем загрузчик в NVRAM через efibootmgr ---
+info "Registering Void Linux in NVRAM..."
+BOOT_DEV=$(findmnt -n -o SOURCE /mnt/boot 2>/dev/null || echo "")
+if [ -n "$BOOT_DEV" ]; then
+    BOOT_DISK="/dev/$(lsblk -n -o PKNAME "$BOOT_DEV" 2>/dev/null || echo "")"
+    BOOT_PART_NUM=$(lsblk -n -o MAJ:MIN "$BOOT_DEV" 2>/dev/null | cut -d: -f2 || echo "1")
+    if [ -n "$BOOT_DISK" ] && [ -b "$BOOT_DISK" ]; then
+        # Удаляем старые записи Void Linux
+        chroot /mnt efibootmgr 2>/dev/null | grep -i "void" | sed -n 's/Boot\([0-9A-F]*\).*/\1/p' | while read -r bn; do
+            chroot /mnt efibootmgr -b "$bn" -B 2>/dev/null || true
+        done
+        # Создаём новую
+        chroot /mnt efibootmgr --create --disk "$BOOT_DISK" --part "$BOOT_PART_NUM" \
+            --label "Void Linux" --loader '\EFI\BOOT\BOOTX64.EFI' 2>/dev/null ||
+            chroot /mnt efibootmgr --create --disk "$BOOT_DISK" --part "$BOOT_PART_NUM" \
+                --label "Void Linux" --loader '/EFI/BOOT/BOOTX64.EFI' 2>/dev/null ||
+            warn "efibootmgr не смог создать запись — не страшно, BOOTX64.EFI fallback сработает"
+    fi
+fi
+
 # --- Проверка ---
 echo ""
 info "Проверка:"
