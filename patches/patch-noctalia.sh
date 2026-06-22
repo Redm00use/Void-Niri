@@ -8,9 +8,12 @@
 #===============================================================================
 set -euo pipefail
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
-info()  { echo -e "${GREEN}[+]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+info() { echo -e "${GREEN}[+]${NC} $*"; }
+warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; }
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -35,15 +38,23 @@ find_noctalia() {
         fi
     done
 
-    # Спросить пользователя
-    warn "Noctalia-shell не найдена в стандартных путях."
-    read -r -p "Укажи путь к директории noctalia-shell: "
-    if [ -d "$REPLY" ] && [ -f "$REPLY/Modules/Bar/Bar.qml" ]; then
-        echo "$REPLY"
-        return
+    # Авто-установка noctalia-shell
+    warn "Noctalia-shell не найдена. Устанавливаю из GitHub..."
+    local noctalia_dest="$HOME/.local/share/noctalia-shell"
+    mkdir -p "$HOME/.local/share"
+    if command -v git &>/dev/null; then
+        rm -rf "$noctalia_dest" 2>/dev/null || true
+        git clone --depth=1 https://github.com/noctalia-community/noctalia-shell.git "$noctalia_dest" 2>/dev/null || {
+            warn "Не удалось клонировать noctalia-shell из git. Пропускаем патчи."
+            return 1
+        }
+        if [ -f "$noctalia_dest/Modules/Bar/Bar.qml" ]; then
+            echo "$noctalia_dest"
+            return
+        fi
     fi
-    error "Noctalia-shell не найдена. Установи её сначала."
-    exit 1
+    warn "Noctalia-shell не установлена. Пропускаем патчи."
+    return 1
 }
 
 #===============================================================================

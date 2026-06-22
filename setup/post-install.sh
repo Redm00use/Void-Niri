@@ -11,11 +11,18 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-info()  { echo -e "${GREEN}[✓]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
+info() { echo -e "${GREEN}[✓]${NC} $*"; }
+warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; }
 
-CONFIG_REPO="${HOME}/void-niri"
+# Авто-определение пути к репозиторию (Void-Niri или void-niri)
+if [ -d "${HOME}/Void-Niri" ]; then
+    CONFIG_REPO="${HOME}/Void-Niri"
+elif [ -d "${HOME}/void-niri" ]; then
+    CONFIG_REPO="${HOME}/void-niri"
+else
+    CONFIG_REPO="${HOME}/void-niri"
+fi
 VOID_INSTALLER="${CONFIG_REPO}"
 
 #===============================================================================
@@ -89,7 +96,7 @@ setup_niri() {
 
     # Создаём niri-session.desktop для greetd/автозапуска
     sudo mkdir -p /usr/share/wayland-sessions
-    sudo tee /usr/share/wayland-sessions/niri.desktop > /dev/null << 'EOF'
+    sudo tee /usr/share/wayland-sessions/niri.desktop >/dev/null <<'EOF'
 [Desktop Entry]
 Name=Niri
 Comment=Niri compositor
@@ -161,7 +168,7 @@ setup_greetd() {
     fi
     info "Настройка greetd..."
 
-    sudo tee /etc/greetd/config.toml > /dev/null << EOF
+    sudo tee /etc/greetd/config.toml >/dev/null <<EOF
 [terminal]
 vt = 1
 
@@ -186,7 +193,7 @@ patch_noctalia() {
     local patcher="${VOID_INSTALLER}/patches/patch-noctalia.sh"
     if [ -f "$patcher" ]; then
         info "Применяем патчи Noctalia (убираем блюр панели)..."
-        bash "$patcher" || warn "Патчи Noctalia не удалось применить (возможно, она ещё не установлена)"
+        bash "$patcher" 2>&1 || warn "Патчи Noctalia пропущены (не критично)"
     fi
 }
 
