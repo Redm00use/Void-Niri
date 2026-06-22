@@ -1,5 +1,6 @@
 # Void Linux — AMD GPU drivers
 mesa
+mesa-dri
 mesa-vulkan-radeon
 mesa-vaapi
 vulkan-loader

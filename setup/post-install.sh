@@ -42,6 +42,17 @@ install_packages() {
     # Убиваем зависшие xbps процессы
     sudo pkill -9 xbps-install 2>/dev/null || true
 
+    # Фоновая продлёнка sudo чтобы не протухал
+    sudo -v
+    {
+        while true; do
+            sleep 60
+            sudo -v
+        done &
+    } 2>/dev/null
+    local sudokeep=$!
+    trap 'kill $sudokeep 2>/dev/null' EXIT
+
     sudo xbps-install -S 2>/dev/null || true
 
     local pkgdir="${VOID_INSTALLER}/packages"
@@ -54,11 +65,22 @@ install_packages() {
     local lists=(
         "$pkgdir/base.list"
         "$pkgdir/desktop.list"
-        "$pkgdir/gpu-amd.list"
-        "$pkgdir/gpu-nvidia.list"
-        "$pkgdir/gpu-intel.list"
-        "$pkgdir/gpu-vm.list"
     )
+
+    # Авто-определяем GPU и добавляем нужный список
+    local gpu_list=""
+    if lspci 2>/dev/null | grep -qi "vga.*nvidia"; then
+        gpu_list="$pkgdir/gpu-nvidia.list"
+    elif lspci 2>/dev/null | grep -qi "vga.*amd\|vga.*radeon\|vga.*ati"; then
+        gpu_list="$pkgdir/gpu-amd.list"
+    elif lspci 2>/dev/null | grep -qi "vga.*intel"; then
+        gpu_list="$pkgdir/gpu-intel.list"
+    else
+        # VM или неизвестно — пробуем vm.list, иначе пропускаем GPU
+        [ -f "$pkgdir/gpu-vm.list" ] && gpu_list="$pkgdir/gpu-vm.list"
+    fi
+    [ -n "$gpu_list" ] && lists+=("$gpu_list")
+    info "GPU: $(basename "${gpu_list:-none}" .list)"
 
     for listfile in "${lists[@]}"; do
         [ -f "$listfile" ] || continue
@@ -104,6 +126,11 @@ setup_ohmyzsh() {
 setup_flatpak() {
     if ! command -v flatpak &>/dev/null; then
         warn "Flatpak не установлен, пропускаем."
+        return
+    fi
+    # dbus может не работать без графической сессии — не фатально
+    if ! dbus-send --session --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.ListNames &>/dev/null; then
+        warn "dbus не доступен, пропускаем flatpak настройку."
         return
     fi
     info "Настройка Flatpak + Flathub..."
