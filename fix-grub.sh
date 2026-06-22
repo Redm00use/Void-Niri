@@ -148,6 +148,16 @@ mount --rbind /dev /mnt/dev || warn "mount --rbind /dev failed"
 mount --rbind /proc /mnt/proc || warn "mount --rbind /proc failed"
 mount --rbind /run /mnt/run || warn "mount --rbind /run failed"
 
+# --- Монтируем efivarfs (нужно чтобы efibootmgr мог писать в NVRAM) ---
+if [ -d /sys/firmware/efi/efivars ]; then
+    mkdir -p /mnt/sys/firmware/efi/efivars
+    if ! mountpoint -q /mnt/sys/firmware/efi/efivars 2>/dev/null; then
+        mount -t efivarfs efivarfs /mnt/sys/firmware/efi/efivars 2>/dev/null &&
+            info "efivarfs mounted for NVRAM access" ||
+            warn "efivarfs mount failed (NVRAM может быть недоступен в этой VM)"
+    fi
+fi
+
 # --- Chroot: переустановка GRUB ---
 info "Installing GRUB..."
 chroot /mnt grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id="Void Linux" --removable || {
