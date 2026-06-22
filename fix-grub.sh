@@ -6,11 +6,10 @@
 # Использование:
 #   1. Загрузитесь с Void Linux Live ISO
 #   2. Подключите интернет
-#   3. Скачайте скрипт:
-#      curl -O https://raw.githubusercontent.com/Redm00use/Void-Niri/main/fix-grub.sh
-#   4. Запустите:
-#      sudo bash fix-grub.sh /dev/sda
-#      (замените /dev/sda на ваш диск, как lsblk показывает)
+#   3. Скачайте и запустите одной командой:
+#      curl -sL https://raw.githubusercontent.com/Redm00use/Void-Niri/main/fix-grub.sh | sudo bash -s -- /dev/vda
+#      (если не знаете диск — просто: curl ... | sudo bash
+#       скрипт сам найдёт root и EFI разделы)
 #===============================================================================
 set -euo pipefail
 
@@ -24,23 +23,25 @@ info() { echo -e "${GREEN}[+]${NC} $*"; }
 warn() { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; }
 
-if [ $# -lt 1 ]; then
-    echo "Usage: sudo bash fix-grub.sh /dev/sdX"
-    echo ""
-    echo "Доступные диски:"
-    lsblk -d -e 7,11 -o NAME,SIZE,TYPE,MODEL 2>/dev/null | grep -E 'disk' || true
-    echo ""
-    echo "Пример: sudo bash fix-grub.sh /dev/sda"
-    exit 1
+DISK=""
+if [ $# -ge 1 ]; then
+    DISK="$1"
 fi
 
-DISK="$1"
-ROOT_PART="${DISK}3"
-EFI_PART="${DISK}1"
+ROOT_PART=""
+EFI_PART=""
+
+# Если диск указан — пробуем стандартную раскладку (1=EFI, 3=root)
+if [ -n "$DISK" ]; then
+    ROOT_PART="${DISK}3"
+    EFI_PART="${DISK}1"
+    [ ! -b "$ROOT_PART" ] && ROOT_PART=""
+    [ ! -b "$EFI_PART" ] && EFI_PART=""
+fi
 
 # --- Автопоиск root-раздела ---
-if [ ! -b "$ROOT_PART" ]; then
-    warn "$ROOT_PART not found. Scanning for root partition..."
+if [ -z "$ROOT_PART" ]; then
+    info "Scanning for root partition..."
     # Сначала btrfs (по приоритету), потом ext4
     for fstype in btrfs ext4; do
         ROOT_PART=$(blkid -t TYPE="$fstype" -o device 2>/dev/null | head -1 || true)
@@ -52,11 +53,13 @@ if [ ! -b "$ROOT_PART" ]; then
         exit 1
     fi
     info "Found root: $ROOT_PART"
+    # Выводим имя диска из root-раздела (например /dev/vda3 → /dev/vda)
+    [ -z "$DISK" ] && DISK="/dev/$(lsblk -n -o PKNAME "$ROOT_PART" 2>/dev/null || echo "")"
 fi
 
 # --- Автопоиск EFI-раздела ---
-if [ ! -b "$EFI_PART" ]; then
-    warn "$EFI_PART not found. Scanning for EFI partition..."
+if [ -z "$EFI_PART" ]; then
+    info "Scanning for EFI partition..."
     EFI_PART=$(blkid -t TYPE="vfat" -o device 2>/dev/null | head -1 || true)
     if [ -z "$EFI_PART" ]; then
         error "Cannot find EFI partition (vfat). Available:"
