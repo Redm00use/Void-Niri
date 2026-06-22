@@ -313,6 +313,10 @@ setup_system_configs() {
 setup_autolaunch() {
     info "Настройка автозапуска niri..."
 
+    # Добавляем пользователя в группы для доступа к DRM/input
+    info "Добавление в группы video, input, render..."
+    sudo usermod -aG video,input,render "$USER" 2>/dev/null || true
+
     if command -v greetd &>/dev/null; then
         info "greetd уже настроен — авто-запуск через него."
         return
@@ -367,7 +371,25 @@ main() {
 
     # Авто-запуск niri если пакет установлен и мы на tty
     if command -v niri &>/dev/null; then
-        info "Niri установлен. Запускаю..."
+        info "Niri установлен."
+
+        # Проверка DRM
+        if [ ! -e /dev/dri/card0 ]; then
+            warn "/dev/dri/card0 не найден!"
+            warn "В QEMU/Boxes: включи virtio-gpu в настройках VM."
+            warn "  или добавь флаг: -vga virtio -display gtk,gl=on"
+            echo
+            echo "  Пока что перезагрузи VM с правильным видео:"
+            echo "  Заверши настройку VM и запусти niri после ребута."
+            return
+        fi
+
+        # Проверка сессии
+        if ! loginctl session-status 2>/dev/null | grep -q "State: active"; then
+            warn "Нет активной сессии logind. Перелогинься."
+            return
+        fi
+
         echo
         echo -e "${YELLOW}  Входи в систему как ${USER} на tty1 (Ctrl+Alt+F1)${NC}"
         echo -e "${YELLOW}  Niri запустится автоматически!${NC}"
