@@ -512,9 +512,16 @@ echo "$L" >> /etc/default/libc-locales 2>/dev/null || true
 xbps-reconfigure -f glibc-locales
 
 # Репозитории
-xbps-install -Sy xbps 2>/dev/null || true
-xbps-install -Sy void-repo-nonfree void-repo-multilib void-repo-multilib-nonfree 2>/dev/null || true
-xbps-install -S 2>/dev/null || true
+if ! xbps-install -Sy xbps; then
+    echo "  [!] CRITICAL: xbps update failed! No network in chroot?"
+    echo "  [!] Packages will NOT be installed. Re-run post-install.sh after boot!"
+fi
+xbps-install -Sy void-repo-nonfree void-repo-multilib void-repo-multilib-nonfree || echo "  [!] nonfree repos not available (non-critical)"
+if ! xbps-install -S; then
+    echo "  [!] CRITICAL: Repo sync failed! Packages will NOT install."
+    echo "  [!] Check network (DNS, resolv.conf)."
+    echo "  [!] Re-run: bash ~/void-niri/setup/post-install.sh after first boot."
+fi
 
 # Функция установки списка пакетов (пропускает отсутствующие)
 install_list() {
@@ -527,12 +534,12 @@ install_list() {
         [ -z "$line" ] && continue
         pkgs="$pkgs $line"
     done < "$f"
-    [ -n "$pkgs" ] && xbps-install -y $pkgs 2>&1 | tail -3 || echo "  (ok)"
+    [ -n "$pkgs" ] && xbps-install -y $pkgs 2>&1 || echo "  (ok, no packages to install)"
 }
 
-install_list /tmp/pkgs-base.list "Системные пакеты"
-[ "$R" = desktop ] && install_list /tmp/pkgs-desktop.list "Desktop пакеты"
-[ "$R" = desktop ] && install_list /tmp/pkgs-gpu.list "GPU драйверы ($G)"
+install_list /tmp/pkgs-base.list "Системные пакеты" || echo "  [!] base.list install had errors"
+[ "$R" = desktop ] && install_list /tmp/pkgs-desktop.list "Desktop пакеты" || echo "  [!] desktop.list install had errors"
+[ "$R" = desktop ] && install_list /tmp/pkgs-gpu.list "GPU драйверы ($G)" || echo "  [!] gpu.list install had errors"
 
 # Пользователь
 useradd -m -G wheel,network,audio,video,input,bluetooth,kvm,libvirt,plugdev \
